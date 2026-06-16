@@ -95,6 +95,10 @@ const features = [
   min-width: 220px;
   padding: 14px 48px;
   font-size: var(--font-size-lg);
+  color: #fff !important;
+}
+.hero-cta:hover {
+  color: #fff !important;
 }
 .features {
   padding: var(--spacing-md) var(--spacing-lg);

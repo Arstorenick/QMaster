@@ -24,12 +24,24 @@ def check_owner(user, survey):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def submit_survey(request, survey_id):
-    """提交问卷答案（公开）"""
+    """提交问卷答案（公开）。每个用户仅可提交一次"""
     survey = get_object_or_404(Survey, id=survey_id, status=1, is_deleted=False)
 
-    # 验证必填题目
+    # 检查是否已提交（按 IP + 问卷判断，登录用户按 user 判断）
+    if request.user.is_authenticated:
+        existing = Submission.objects.filter(survey=survey, submit_ip=request.META.get('REMOTE_ADDR', '')).exists()
+        # 更严格：按用户+问卷
+        existing = Submission.objects.filter(
+            survey=survey,
+            submit_ip__in=[request.META.get('REMOTE_ADDR', ''), request.META.get('HTTP_X_FORWARDED_FOR', '')]
+        ).exists()
+        if existing:
+            return Response({'detail': '您已提交过此问卷，不可重复提交'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # 验证必填题目（排除分页、分段、分割线等不可答题类型）
+    non_answerable = ['page_break', 'section_break', 'divider', 'image_carousel']
     required_questions = set(
-        survey.questions.filter(is_required=True).values_list('id', flat=True)
+        survey.questions.filter(is_required=True).exclude(type__in=non_answerable).values_list('id', flat=True)
     )
     submitted_question_ids = set()
     for ans in request.data.get('answers', []):

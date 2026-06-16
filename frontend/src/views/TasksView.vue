@@ -14,6 +14,9 @@
         >
           <div class="task-item-title">{{ t.title }}</div>
           <div class="task-item-meta">
+            <span class="text-sm text-secondary">完成时间 {{ formatDate(t.updated_at) }}</span>
+          </div>
+          <div class="task-item-meta">
             <span v-if="t.submitted" class="tag tag-success">已提交</span>
             <span v-else class="tag tag-warning">待完成</span>
             <span class="text-sm text-secondary">{{ t.dept_name }}</span>
@@ -30,11 +33,18 @@
     <section class="tasks-main">
       <template v-if="activeSurvey">
         <div class="display-card card" v-if="!submitted">
-          <div class="display-header" v-if="activeSurvey.style?.show_title !== false">
+          <div class="display-header" v-if="activeSurvey.style?.show_title !== false || true">
             <h2>{{ activeSurvey.title }}</h2>
             <p class="text-secondary text-sm" v-if="activeSurvey.description">{{ activeSurvey.description }}</p>
           </div>
-          <div v-for="q in activeQuestions" :key="q.id" class="display-q">
+          <!-- Current Page Questions -->
+          <template v-for="q in currentPageQuestions" :key="q.id">
+            <!-- Separators -->
+            <div v-if="q.type === 'page_break'" class="page-break-line"></div>
+            <div v-else-if="q.type === 'section_break'" class="section-break-line"></div>
+            <div v-else-if="q.type === 'divider'" class="divider-line"></div>
+            <!-- Regular Question -->
+            <div v-else class="display-q">
             <div class="dq-title">
               <span class="dq-num">{{ getQNumber(q.id) }}.</span>
               <span>{{ q.title }}</span>
@@ -79,6 +89,13 @@
               <input type="range" :min="q.config?.min || 0" :max="q.config?.max || 100" v-model="answers[q.id]" style="flex:1" />
               <span>{{ answers[q.id] || 0 }}{{ q.config?.unit || '' }}</span>
             </div>
+            </div>
+          </template>
+          <!-- Page Navigation -->
+          <div class="page-nav" v-if="pages.length > 1">
+            <button class="btn btn-secondary btn-sm" :disabled="currentPage === 0" @click="currentPage--">上一页</button>
+            <span class="text-sm text-secondary page-indicator">{{ currentPage + 1 }} / {{ pages.length }}</span>
+            <button class="btn btn-primary btn-sm" :disabled="currentPage >= pages.length - 1" @click="currentPage++">下一页</button>
           </div>
           <div style="text-align:center;margin-top:var(--spacing-xl)">
             <button class="btn btn-primary btn-lg" @click="submitSurvey" :disabled="submitting">
@@ -86,10 +103,15 @@
             </button>
           </div>
         </div>
-        <div class="card text-center" v-else style="padding:var(--spacing-2xl)">
-          <p style="font-size:48px">✅</p>
-          <h3>已完成提交</h3>
-          <p class="text-secondary mt-sm">感谢您的参与！</p>
+        <div class="submitted-card" v-else>
+          <div class="submitted-inner">
+            <div class="submitted-icon">✓</div>
+            <h2>已完成提交</h2>
+            <p>感谢您的参与！您的回答已成功提交。</p>
+            <div class="submitted-info">
+              <span>如需修改请联系管理员</span>
+            </div>
+          </div>
         </div>
       </template>
       <div v-else class="tasks-empty text-center">
@@ -102,7 +124,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { surveysAPI, responsesAPI, departmentsAPI } from '../api'
 
@@ -113,8 +135,32 @@ const activeQuestions = ref([])
 const answers = reactive({})
 const submitted = ref(false)
 const submitting = ref(false)
+const currentPage = ref(0)
+
+const pages = computed(() => {
+  if (!activeSurvey.value?.questions) return []
+  const result = []
+  let current = []
+  for (const q of activeSurvey.value.questions) {
+    if (q.type === 'page_break') {
+      if (current.length) result.push(current)
+      current = []
+    } else {
+      current.push(q)
+    }
+  }
+  if (current.length) result.push(current)
+  return result.length ? result : [activeSurvey.value.questions.filter(q => !['page_break','section_break','divider'].includes(q.type))]
+})
+
+const currentPageQuestions = computed(() => pages.value[currentPage.value] || [])
 
 onMounted(loadTasks)
+
+function formatDate(d) {
+  if (!d) return ''
+  return new Date(d).toLocaleString('zh-CN', { hour12: false })
+}
 
 async function loadTasks() {
   if (!auth.user?.department) {
@@ -122,7 +168,7 @@ async function loadTasks() {
     return
   }
   const { data } = await surveysAPI.myTasks().catch(() => ({ data: [] }))
-  tasks.value = data.map(s => ({ ...s, submitted: false }))
+  tasks.value = data
 }
 
 function isAncestor(targetId, deptId) {
@@ -132,15 +178,20 @@ function isAncestor(targetId, deptId) {
 }
 
 async function openSurvey(survey) {
+  submitted.value = survey.submitted
+  if (survey.submitted) {
+    activeSurvey.value = survey
+    activeQuestions.value = []
+    return
+  }
   const { data } = await surveysAPI.public(survey.id)
   activeSurvey.value = data
-  activeQuestions.value = data.questions?.filter(q => !['page_break','section_break','divider'].includes(q.type)) || []
-  // Reset answers
+  activeQuestions.value = data.questions || []
+  currentPage.value = 0
   for (const key in answers) delete answers[key]
   for (const q of activeQuestions.value) {
     if (q.type === 'checkbox') answers[q.id] = []
   }
-  submitted.value = false
 }
 
 function getQNumber(qId) {
@@ -212,4 +263,42 @@ async function submitSurvey() {
 .dq-scale { display: flex; align-items: center; gap: var(--spacing-sm); }
 .scale-radio { display: flex; flex-direction: column; align-items: center; cursor: pointer; }
 .dq-slider { display: flex; align-items: center; gap: var(--spacing-md); }
+.page-break-line { border-top: 2px dashed var(--color-border); margin: var(--spacing-lg) 0; }
+.section-break-line { border-top: 1px solid var(--color-border-light); margin: var(--spacing-lg) 0; }
+.divider-line { border-top: 1px solid var(--color-border-light); margin: var(--spacing-md) 0; }
+.page-nav { display: flex; align-items: center; justify-content: center; gap: var(--spacing-lg); padding: var(--spacing-md) 0; }
+.page-nav .btn { min-width: 80px; }
+.page-indicator { min-width: 60px; text-align: center; }
+
+.submitted-card {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 100%; padding: var(--spacing-2xl);
+}
+.submitted-inner {
+  text-align: center; max-width: 440px;
+  animation: fadeInUp 0.5s ease;
+}
+.submitted-icon {
+  width: 80px; height: 80px; margin: 0 auto 24px;
+  border-radius: 50%; background: linear-gradient(135deg, #10B981, #34D399);
+  color: #fff; font-size: 40px; font-weight: 700; line-height: 80px;
+  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.3);
+}
+.submitted-inner h2 {
+  font-size: 24px; font-weight: 700; margin-bottom: 8px;
+  color: var(--color-text-primary);
+}
+.submitted-inner p {
+  font-size: 15px; color: var(--color-text-secondary);
+  margin-bottom: 24px;
+}
+.submitted-info {
+  display: inline-block; padding: 8px 20px;
+  background: var(--color-bg); border-radius: 20px;
+  font-size: 13px; color: var(--color-text-tertiary);
+}
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 </style>

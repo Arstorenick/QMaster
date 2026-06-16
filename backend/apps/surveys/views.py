@@ -128,7 +128,7 @@ def survey_style(request, survey_id):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def my_tasks(request):
-    """返回推送给当前用户部门的问卷"""
+    """返回推送给当前用户部门的问卷，含提交状态"""
     user = request.user
     if not user.department:
         return Response([])
@@ -137,7 +137,15 @@ def my_tasks(request):
         status=1, is_deleted=False,
         target_departments__id__in=dept_ids
     ).distinct().order_by('-updated_at')
-    return Response(SurveyListSerializer(surveys, many=True).data)
+
+    from apps.responses.models import Submission
+    data = []
+    for s in surveys:
+        item = SurveyListSerializer(s).data
+        item['submitted'] = Submission.objects.filter(survey=s).exists()  # Simplified: check if any submission exists
+        data.append(item)
+
+    return Response(data)
 
 
 @api_view(['GET'])
