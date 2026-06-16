@@ -1,0 +1,109 @@
+<template>
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="header-left">
+        <router-link :to="auth.isLoggedIn ? '/home' : '/'" class="logo">
+          <span class="logo-icon">◆</span>
+          <span class="logo-text">QMaster</span>
+        </router-link>
+        <nav class="nav-links" v-if="auth.isLoggedIn && auth.isCreator">
+          <router-link to="/home" class="nav-link">我的问卷</router-link>
+          <router-link to="/departments" class="nav-link">我的部门</router-link>
+        </nav>
+        <nav class="nav-links" v-if="auth.isLoggedIn && !auth.isCreator">
+          <router-link to="/tasks" class="nav-link">我的任务</router-link>
+        </nav>
+      </div>
+
+      <div class="header-right">
+        <template v-if="auth.isLoggedIn">
+          <router-link to="/profile" class="btn btn-ghost btn-sm">{{ auth.user?.username }}</router-link>
+          <button class="btn btn-ghost btn-sm" @click="handleLogout">退出</button>
+        </template>
+        <template v-else>
+          <router-link to="/login" class="btn btn-ghost btn-sm">登录</router-link>
+          <router-link to="/register" class="btn btn-primary btn-sm">注册</router-link>
+        </template>
+      </div>
+    </div>
+  </header>
+</template>
+
+<script setup>
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '../../stores/auth'
+
+const auth = useAuthStore()
+const router = useRouter()
+
+auth.fetchMe()
+
+async function handleLogout() {
+  await auth.logout()
+  router.push('/')
+}
+</script>
+
+<style scoped>
+.app-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--header-height);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--color-border-light);
+  z-index: 100;
+}
+.header-inner {
+  padding: 0 var(--spacing-lg);
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-lg);
+}
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  text-decoration: none;
+}
+.logo-icon {
+  color: var(--color-primary);
+  font-size: 20px;
+}
+.nav-links {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+.nav-link {
+  padding: 6px 14px;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+.nav-link:hover,
+.nav-link.router-link-active {
+  color: var(--color-primary);
+  background: var(--color-primary-light);
+}
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+.user-name {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+</style>
