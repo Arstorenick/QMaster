@@ -27,16 +27,17 @@ def submit_survey(request, survey_id):
     """提交问卷答案（公开）。每个用户仅可提交一次"""
     survey = get_object_or_404(Survey, id=survey_id, status=1, is_deleted=False)
 
-    # 检查是否已提交（按 IP + 问卷判断，登录用户按 user 判断）
+    # 检查是否已提交（登录用户按用户名判断，未登录按 IP 判断）
     if request.user.is_authenticated:
-        existing = Submission.objects.filter(survey=survey, submit_ip=request.META.get('REMOTE_ADDR', '')).exists()
-        # 更严格：按用户+问卷
         existing = Submission.objects.filter(
             survey=survey,
-            submit_ip__in=[request.META.get('REMOTE_ADDR', ''), request.META.get('HTTP_X_FORWARDED_FOR', '')]
+            respondent_info__username=request.user.username
         ).exists()
-        if existing:
-            return Response({'detail': '您已提交过此问卷，不可重复提交'}, status=status.HTTP_400_BAD_REQUEST)
+    else:
+        client_ip = request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip() or request.META.get('REMOTE_ADDR', '')
+        existing = Submission.objects.filter(survey=survey, submit_ip=client_ip).exists()
+    if existing:
+        return Response({'detail': '您已提交过此问卷，不可重复提交'}, status=status.HTTP_400_BAD_REQUEST)
 
     # 验证必填题目（排除分页、分段、分割线等不可答题类型）
     non_answerable = ['page_break', 'section_break', 'divider', 'image_carousel']
@@ -66,8 +67,12 @@ def submit_survey(request, survey_id):
             status=status.HTTP_400_BAD_REQUEST
         )
 
+    data = request.data.copy()
+    if request.user.is_authenticated:
+        data.setdefault('respondent_info', {})
+        data['respondent_info']['username'] = request.user.username
     serializer = SubmissionCreateSerializer(
-        data=request.data, context={'request': request}
+        data=data, context={'request': request}
     )
     if serializer.is_valid():
         submission = serializer.save(survey=survey)

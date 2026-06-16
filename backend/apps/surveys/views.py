@@ -89,8 +89,10 @@ def survey_publish(request, survey_id):
 
     survey.status = new_status
 
-    # 发布时设置目标部门
+    # 发布时记录时间 + 设置目标部门
     if new_status == 1:
+        from django.utils import timezone
+        survey.published_at = timezone.now()
         target_ids = request.data.get('target_departments', None)
         from apps.users.models import Department
         if target_ids is not None:
@@ -105,6 +107,34 @@ def survey_publish(request, survey_id):
 
     survey.save()
     return Response({'status': survey.status, 'detail': '状态已更新'})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def survey_copy(request, survey_id):
+    """复制问卷（用于停止收集后修改再发布）"""
+    survey = get_object_or_404(Survey, id=survey_id, is_deleted=False)
+    check_owner(request.user, survey)
+
+    new_survey = Survey.objects.create(
+        title=request.data.get('title', survey.title + ' (副本)'),
+        description=survey.description,
+        owner=request.user,
+        status=0,
+        style=survey.style.copy() if survey.style else {},
+    )
+    for q in survey.questions.all():
+        new_q = Question.objects.create(
+            survey=new_survey,
+            type=q.type, title=q.title, is_required=q.is_required,
+            order=q.order, score=q.score, config=q.config.copy() if q.config else {},
+        )
+        for opt in q.options.all():
+            Option.objects.create(
+                question=new_q, title=opt.title, order=opt.order,
+                score=opt.score, image=opt.image,
+            )
+    return Response(SurveyDetailSerializer(new_survey).data, status=status.HTTP_201_CREATED)
 
 
 @api_view(['PATCH'])

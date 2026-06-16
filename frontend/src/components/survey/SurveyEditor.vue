@@ -1,7 +1,7 @@
 <template>
   <div class="editor-layout">
     <!-- Question Type Toolbar -->
-    <div class="type-toolbar">
+    <div class="type-toolbar" v-if="!readonly">
       <div class="type-group" v-for="group in typeGroups" :key="group.label">
         <span class="type-group-label">{{ group.label }}</span>
         <div class="type-buttons">
@@ -28,35 +28,50 @@
       <template #item="{ element: q, index }">
       <div
         class="question-card card"
-        :class="{ 'is-page-break': q.type === 'page_break' || q.type === 'section_break', 'is-dragging': dragging }"
+        :class="{ 'is-page-break': q.type === 'page_break', 'is-section-break': q.type === 'section_break', 'is-dragging': dragging }"
       >
-        <!-- Page/Section Break -->
-        <template v-if="q.type === 'page_break' || q.type === 'section_break'">
+        <!-- Page Break -->
+        <template v-if="q.type === 'page_break'">
           <div class="break-label">
             <span class="drag-handle break-handle">⠿</span>
-            {{ q.type === 'page_break' ? '── 分页 ──' : '── 分段 ──' }}
-            <button class="btn btn-ghost btn-sm" @click="deleteQuestion(q.id)">删除</button>
+            ═══ 分页 ═══
+            <button v-if="!readonly" class="btn btn-ghost btn-sm" @click="deleteQuestion(q.id)">删除</button>
+          </div>
+        </template>
+        <!-- Section Break -->
+        <template v-else-if="q.type === 'section_break'">
+          <div class="section-editor">
+            <span class="drag-handle break-handle">⠿</span>
+            <input
+              v-model="q.title"
+              class="section-title-input"
+              placeholder="输入章节标题"
+              :disabled="readonly"
+              @blur="updateQuestion(q)"
+            />
+            <button v-if="!readonly" class="btn btn-ghost btn-sm" @click="deleteQuestion(q.id)">删除</button>
           </div>
         </template>
 
         <!-- Regular Question -->
         <template v-else>
           <div class="q-header">
-            <span class="drag-handle" title="拖拽排序">⠿</span>
+            <span class="drag-handle" title="拖拽排序" v-if="!readonly">⠿</span>
             <span class="q-number">{{ getQNumber(index) }}</span>
             <span class="q-type-tag tag tag-primary">{{ getTypeLabel(q.type) }}</span>
             <input
               v-model="q.title"
               class="q-title-input"
               placeholder="请输入题目标题"
+              :disabled="readonly"
               @blur="updateQuestion(q)"
             />
             <div class="q-header-actions">
-              <label class="required-toggle">
+              <label class="required-toggle" v-if="!readonly">
                 <input type="checkbox" v-model="q.is_required" @change="updateQuestion(q)" />
                 <span>必填</span>
               </label>
-              <button class="btn btn-ghost btn-sm" @click="deleteQuestion(q.id)">删除</button>
+              <button v-if="!readonly" class="btn btn-ghost btn-sm" @click="deleteQuestion(q.id)">删除</button>
             </div>
           </div>
 
@@ -68,11 +83,12 @@
                 v-model="opt.title"
                 class="input option-input"
                 :placeholder="`选项 ${opt.order + 1}`"
+                :disabled="readonly"
                 @blur="updateOption(q, opt)"
               />
-              <button class="btn btn-ghost btn-sm" @click="deleteOption(q, opt.id)" style="color:var(--color-danger)">×</button>
+              <button v-if="!readonly" class="btn btn-ghost btn-sm" @click="deleteOption(q, opt.id)" style="color:var(--color-danger)">×</button>
             </div>
-            <button class="btn btn-ghost btn-sm add-option-btn" @click="addOption(q)">+ 添加选项</button>
+            <button v-if="!readonly" class="btn btn-ghost btn-sm add-option-btn" @click="addOption(q)">+ 添加选项</button>
           </div>
 
           <!-- Text area preview -->
@@ -128,6 +144,7 @@ import { questionsAPI, optionsAPI } from '../../api'
 const props = defineProps({
   survey: Object,
   questions: Array,
+  readonly: { type: Boolean, default: false },
 })
 const emit = defineEmits(['refresh'])
 
@@ -174,7 +191,7 @@ const typeGroups = [
     label: '结构',
     types: [
       { value: 'page_break', label: '分页', icon: '📄' },
-      { value: 'section_break', label: '分段', icon: '📑' },
+      { value: 'section_break', label: '章节标题', icon: '📑' },
     ],
   },
 ]
@@ -354,6 +371,36 @@ async function deleteOption(q, optId) {
   background: var(--color-bg);
   border: 1px dashed var(--color-border);
 }
+.question-card.is-section-break {
+  text-align: center;
+  background: var(--color-bg);
+  border: none;
+}
+.section-editor {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+.section-title-input {
+  flex: 1;
+  border: none;
+  text-align: center;
+  font-size: 20px;
+  font-weight: 700;
+  font-family: var(--font-family);
+  color: var(--color-text-primary);
+  padding: 8px 16px;
+  outline: none;
+  border-bottom: 2px solid transparent;
+  transition: border-color var(--transition-fast);
+}
+.section-title-input:focus {
+  border-bottom-color: var(--color-primary);
+}
+.section-title-input::placeholder {
+  color: var(--color-text-placeholder);
+  font-weight: 400;
+}
 .break-label {
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
@@ -397,6 +444,12 @@ async function deleteOption(q, optId) {
 }
 .q-title-input:focus {
   border-bottom-color: var(--color-primary);
+}
+.q-title-input:disabled {
+  background: transparent;
+  color: var(--color-text-primary);
+  cursor: default;
+  opacity: 1;
 }
 .q-header-actions {
   display: flex;

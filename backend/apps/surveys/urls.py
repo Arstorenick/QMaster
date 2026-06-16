@@ -6,6 +6,7 @@ urlpatterns = [
     path('', views.survey_list, name='survey-list'),
     path('create/', views.survey_create, name='survey-create'),
     path('<int:survey_id>/', views.survey_detail, name='survey-detail'),
+    path('<int:survey_id>/copy/', views.survey_copy, name='survey-copy'),
     path('<int:survey_id>/publish/', views.survey_publish, name='survey-publish'),
     path('<int:survey_id>/style/', views.survey_style, name='survey-style'),
     path('my-tasks/', views.my_tasks, name='survey-my-tasks'),

@@ -17,8 +17,8 @@
 
       <div class="header-right">
         <template v-if="auth.isLoggedIn">
-          <router-link to="/profile" class="btn btn-ghost btn-sm">{{ auth.user?.username }}</router-link>
-          <button class="btn btn-ghost btn-sm" @click="handleLogout">退出</button>
+          <router-link to="/profile" class="header-user-link header-name">{{ auth.user?.display_name || auth.user?.username }}</router-link>
+          <a class="header-user-link header-logout" @click="handleLogout">退出</a>
         </template>
         <template v-else>
           <router-link to="/login" class="btn btn-ghost btn-sm">登录</router-link>
@@ -100,7 +100,20 @@ async function handleLogout() {
 .header-right {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
+  gap: var(--spacing-lg);
+}
+.header-user-link {
+  font-size: 15px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+.header-name:hover {
+  color: var(--color-text-primary);
+}
+.header-logout:hover {
+  color: var(--color-danger);
 }
 .user-name {
   font-size: var(--font-size-sm);

@@ -16,7 +16,12 @@
           </div>
 
           <!-- Questions -->
-          <div v-for="q in page.questions" :key="q.id" class="display-question">
+          <template v-for="q in page.questions" :key="q.id">
+            <!-- Section Break: standalone centered title -->
+            <div v-if="q.type === 'section_break'" class="section-break-title">{{ q.title || '章节标题' }}</div>
+
+            <!-- Regular Question -->
+            <div v-else class="display-question">
             <div class="dq-title">
               <span v-if="style?.show_question_number" class="dq-num">{{ getQNumber(q.id) }}</span>
               <span>{{ q.title }}</span>
@@ -115,7 +120,18 @@
                 <span>{{ opt.title }}</span>
               </label>
             </div>
+
+            <!-- Image Checkbox -->
+            <div v-if="q.type === 'image_checkbox'" class="dq-image-options">
+              <label v-for="opt in q.options" :key="opt.id" class="dq-image-option" :class="{ selected: (answers[q.id] || []).includes(opt.id) }">
+                <img v-if="opt.image" :src="opt.image" :alt="opt.title" />
+                <input type="checkbox" :value="opt.id" v-model="answers[q.id]" />
+                <span>{{ opt.title }}</span>
+              </label>
+            </div>
+
           </div>
+          </template>
 
           <!-- Page Navigation -->
           <div class="display-nav" v-if="pages.length > 1">
@@ -183,7 +199,7 @@ const pages = computed(() => {
       if (current.questions.length) result.push(current)
       current = { index: result.length, questions: [] }
     } else if (q.type === 'section_break') {
-      // section break is just a visual divider, keep in same page
+      current.questions.push(q)
     } else {
       current.questions.push(q)
     }
@@ -214,7 +230,7 @@ async function submit() {
   for (const page of pages.value) {
     for (const q of page.questions) {
       const payload = { question: q.id }
-      if (q.type === 'checkbox') {
+      if (q.type === 'checkbox' || q.type === 'image_checkbox') {
         const vals = answers[q.id]
         if (Array.isArray(vals) && vals.length) {
           for (const optId of vals) {
@@ -236,13 +252,11 @@ async function submit() {
         for (const fi in (q.config?.fields || [])) {
           payload.answer_json[`field_${fi}`] = answers[q.id + '_field_' + fi] || ''
         }
-        payload.answer_json = JSON.stringify(payload.answer_json)
       } else if (q.type === 'ranking') {
         payload.answer_json = {}
         for (const opt of q.options) {
           payload.answer_json[opt.id] = Number(answers[q.id + '_' + opt.id]) || 0
         }
-        payload.answer_json = JSON.stringify(payload.answer_json)
       }
       if (payload.option || payload.answer_text || payload.answer_number !== undefined || payload.answer_json) {
         answerList.push(payload)
@@ -411,6 +425,7 @@ async function submit() {
   max-width: 120px;
   height: auto;
 }
+.section-break-title { text-align: center; font-size: 22px; font-weight: 700; padding: var(--spacing-lg) 0; color: var(--color-text-primary); }
 .dq-multi-text {
   display: flex;
   flex-direction: column;

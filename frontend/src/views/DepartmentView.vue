@@ -161,13 +161,14 @@
                 <input v-model="memberSearch" class="input" placeholder="搜索成员..." style="max-width:200px" />
               </div>
               <table class="table" v-if="filteredMembers.length">
-                <thead><tr><th>用户名</th><th>工号</th><th>联系方式</th><th>所属部门</th><th>角色</th></tr></thead>
+                <thead><tr><th>账号</th><th>用户名</th><th>工号</th><th>联系方式</th><th>所属部门</th><th>角色</th></tr></thead>
                 <tbody>
                   <tr v-for="m in filteredMembers" :key="m.id">
-                    <td><strong>{{ m.username }}</strong></td>
+                    <td style="min-width:160px"><strong>{{ m.username }}</strong></td>
+                    <td>{{ m.display_name || '-' }}</td>
                     <td class="text-secondary text-sm">{{ m.employee_id || '-' }}</td>
                     <td class="text-secondary text-sm">{{ m.phone || '-' }}</td>
-                    <td class="text-secondary text-sm">{{ shortDeptName(m.department_name) }}</td>
+                    <td class="text-secondary text-sm" style="min-width:100px">{{ shortDeptName(m.department_name) }}</td>
                     <td><span class="tag" :class="m.role === 1 ? 'tag-primary' : m.role === 2 ? 'tag-success' : m.role === 4 ? 'tag-primary' : 'tag-warning'">{{ m.role_label }}</span></td>
                   </tr>
                 </tbody>

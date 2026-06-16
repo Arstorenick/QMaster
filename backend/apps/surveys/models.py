@@ -19,6 +19,7 @@ class Survey(models.Model):
         'users.Department', blank=True, related_name='targeted_surveys',
         verbose_name='定向部门'
     )
+    published_at = models.DateTimeField('发布时间', null=True, blank=True)
     created_at = models.DateTimeField('创建时间', auto_now_add=True)
     updated_at = models.DateTimeField('更新时间', auto_now=True)
 

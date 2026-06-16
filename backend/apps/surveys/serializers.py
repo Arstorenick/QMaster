@@ -47,7 +47,8 @@ class SurveyListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Survey
         fields = ['id', 'title', 'description', 'status', 'style',
-                  'question_count', 'submission_count', 'created_at', 'updated_at']
+                  'question_count', 'submission_count', 'published_at',
+                  'created_at', 'updated_at']
         read_only_fields = ['id', 'owner', 'question_count', 'submission_count',
                             'created_at', 'updated_at']
 
@@ -70,7 +71,7 @@ class SurveyDetailSerializer(serializers.ModelSerializer):
         model = Survey
         fields = ['id', 'title', 'description', 'status', 'style',
                   'questions', 'question_count', 'submission_count',
-                  'target_departments', 'owner_name',
+                  'target_departments', 'owner_name', 'published_at',
                   'created_at', 'updated_at']
         read_only_fields = ['id', 'owner', 'question_count', 'submission_count',
                             'created_at', 'updated_at']

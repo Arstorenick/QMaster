@@ -16,11 +16,11 @@
         >
           <div class="survey-item-title">{{ s.title || '未命名问卷' }}</div>
           <div class="survey-item-desc" v-if="s.description">{{ s.description }}</div>
+          <div class="survey-item-time">发布时间：{{ s.published_at ? formatPublishDate(s.published_at) : '您尚未发布该问卷' }}</div>
           <div class="survey-item-meta">
             <span class="tag" :class="s.status === 1 ? 'tag-success' : 'tag-warning'">
               {{ s.status === 1 ? '已发布' : s.status === 2 ? '已关闭' : '草稿' }}
             </span>
-            <span class="text-sm text-secondary">{{ s.submission_count }} 份</span>
             <button class="btn btn-ghost btn-sm survey-edit-btn" @click.stop="openEditDialog(s)">✎ 编辑</button>
           </div>
         </div>
@@ -46,11 +46,22 @@
             :class="currentSurvey.status === 1 ? 'btn-secondary' : 'btn-primary'"
             @click="currentSurvey.status === 1 ? togglePublish() : openPublishDialog()"
           >
-            {{ currentSurvey.status === 1 ? '暂停收集' : '发布问卷' }}
+            {{ currentSurvey.status === 1 ? '停止收集' : '发布问卷' }}
           </button>
+          <button
+            v-if="currentSurvey.status === 1"
+            class="btn btn-secondary btn-sm"
+            @click="copySurvey"
+          >复制为新问卷</button>
           <button class="btn btn-secondary btn-sm" @click="showShareDialog = true">分享</button>
-          <button class="btn btn-ghost btn-sm" @click="deleteCurrentSurvey" style="color: var(--color-danger)">删除</button>
+          <button v-if="currentSurvey.status === 0" class="btn btn-ghost btn-sm" @click="deleteCurrentSurvey" style="color: var(--color-danger)">删除</button>
         </div>
+      </div>
+
+      <!-- Locked Banner -->
+      <div class="lock-banner" v-if="currentSurvey.status !== 0 && activeTab === 'edit'">
+        <span v-if="currentSurvey.status === 1">🔒 问卷已发布，题目只读。如需修改请「停止收集」后复制为新问卷。</span>
+        <span v-else>🔒 问卷已停止收集，题目只读。如需修改请「复制为新问卷」。</span>
       </div>
 
       <!-- Editor Tab -->
@@ -58,6 +69,7 @@
         v-if="activeTab === 'edit'"
         :survey="currentSurvey"
         :questions="questions"
+        :readonly="currentSurvey.status !== 0"
         @refresh="loadQuestions"
       />
 
@@ -300,6 +312,28 @@ function autoPopulateDepts() {
   publishCheckedDepts.value = ids
 }
 
+function formatPublishDate(d) {
+  if (!d) return ''
+  const date = new Date(d)
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const h = String(date.getHours()).padStart(2, '0')
+  const min = String(date.getMinutes()).padStart(2, '0')
+  const s = String(date.getSeconds()).padStart(2, '0')
+  return `${y}-${m}-${day} ${h}:${min}:${s}`
+}
+
+async function copySurvey() {
+  const title = prompt('新问卷标题', (currentSurvey.value?.title || '') + ' (副本)')
+  if (!title) return
+  const { data } = await surveysAPI.copy(currentSurvey.value.id, title)
+  await loadSurveys()
+  currentSurvey.value = data
+  questions.value = []
+  activeTab.value = 'edit'
+}
+
 async function confirmPublish() {
   const s = currentSurvey.value
   const deptIds = [...publishCheckedDepts.value]
@@ -410,6 +444,7 @@ watch(showShareDialog, async (val) => {
   font-weight: 500;
   margin-bottom: 2px;
 }
+.survey-item-time { font-size: 11px; color: var(--color-text-tertiary); margin-bottom: 2px; }
 .survey-item-desc {
   font-size: var(--font-size-xs);
   color: var(--color-text-tertiary);
@@ -516,6 +551,6 @@ watch(showShareDialog, async (val) => {
   justify-content: center;
 }
 .publish-section { margin: var(--spacing-md) 0; }
-.publish-section h4 { font-size: 13px; margin-bottom: 8px; color: var(--color-text-secondary); }
+.lock-banner { padding: var(--spacing-md) var(--spacing-xl); background: var(--color-warning-light); border-bottom: 1px solid #FDE68A; text-align: center; font-size: 13px; color: #92400E; }
 .publish-tree { max-height: 300px; overflow-y: auto; border: 1px solid var(--color-border-light); border-radius: var(--radius-md); padding: var(--spacing-sm); }
 </style>

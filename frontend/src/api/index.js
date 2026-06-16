@@ -46,6 +46,7 @@ export const surveysAPI = {
   get: (id) => api.get(`/api/surveys/${id}/`),
   update: (id, data) => api.put(`/api/surveys/${id}/`, data),
   delete: (id) => api.delete(`/api/surveys/${id}/`),
+  copy: (id, title) => api.post(`/api/surveys/${id}/copy/`, { title }),
   publish: (id, status, targetDepartments) => api.patch(`/api/surveys/${id}/publish/`, { status, target_departments: targetDepartments }),
   style: (id, style) => api.patch(`/api/surveys/${id}/style/`, { style }),
   public: (id) => api.get(`/api/surveys/${id}/public/`),
