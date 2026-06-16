@@ -8,6 +8,7 @@ urlpatterns = [
     path('<int:survey_id>/', views.survey_detail, name='survey-detail'),
     path('<int:survey_id>/publish/', views.survey_publish, name='survey-publish'),
     path('<int:survey_id>/style/', views.survey_style, name='survey-style'),
+    path('my-tasks/', views.my_tasks, name='survey-my-tasks'),
     path('public/', views.public_list, name='survey-public-list'),
     path('<int:survey_id>/public/', views.survey_public, name='survey-public'),
 

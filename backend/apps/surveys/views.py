@@ -79,7 +79,7 @@ def survey_detail(request, survey_id):
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated])
 def survey_publish(request, survey_id):
-    """发布 / 取消发布 / 关闭问卷"""
+    """发布 / 取消发布 / 关闭问卷。发布时自动推送到管理员所属部门及子部门"""
     survey = get_object_or_404(Survey, id=survey_id, is_deleted=False)
     check_owner(request.user, survey)
 
@@ -88,6 +88,21 @@ def survey_publish(request, survey_id):
         return Response({'detail': '状态值无效'}, status=status.HTTP_400_BAD_REQUEST)
 
     survey.status = new_status
+
+    # 发布时设置目标部门
+    if new_status == 1:
+        target_ids = request.data.get('target_departments', None)
+        from apps.users.models import Department
+        if target_ids is not None:
+            # 管理员手动指定了目标部门
+            target_depts = Department.objects.filter(id__in=target_ids)
+            survey.target_departments.set(target_depts)
+        elif request.user.department:
+            # 自动推送到管理员所属部门及所有子部门
+            dept_ids = request.user.department.get_descendant_ids()
+            target_depts = Department.objects.filter(id__in=dept_ids)
+            survey.target_departments.set(target_depts)
+
     survey.save()
     return Response({'status': survey.status, 'detail': '状态已更新'})
 
@@ -111,7 +126,20 @@ def survey_style(request, survey_id):
 # ══════════════════════════════════════════════════════════
 
 @api_view(['GET'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
+def my_tasks(request):
+    """返回推送给当前用户部门的问卷"""
+    user = request.user
+    if not user.department:
+        return Response([])
+    dept_ids = user.department.get_descendant_ids()
+    surveys = Survey.objects.filter(
+        status=1, is_deleted=False,
+        target_departments__id__in=dept_ids
+    ).distinct().order_by('-updated_at')
+    return Response(SurveyListSerializer(surveys, many=True).data)
+
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def public_list(request):
@@ -120,11 +148,13 @@ def public_list(request):
     return Response(SurveyListSerializer(surveys, many=True).data)
 
 
+@api_view(['GET'])
+@permission_classes([AllowAny])
 def survey_public(request, survey_id):
     """获取问卷（已发布公开可见，所有者可预览未发布问卷）"""
     survey = get_object_or_404(Survey, id=survey_id, is_deleted=False)
     if survey.status != 1 and (not request.user.is_authenticated or survey.owner != request.user):
-        raise PermissionDenied('问卷未发布')
+        return Response({'detail': '问卷未发布'}, status=404)
     return Response(SurveyDetailSerializer(survey).data)
 
 

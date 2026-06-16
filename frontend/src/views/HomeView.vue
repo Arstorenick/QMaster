@@ -44,7 +44,7 @@
           <button
             class="btn btn-sm"
             :class="currentSurvey.status === 1 ? 'btn-secondary' : 'btn-primary'"
-            @click="togglePublish"
+            @click="currentSurvey.status === 1 ? togglePublish() : openPublishDialog()"
           >
             {{ currentSurvey.status === 1 ? '暂停收集' : '发布问卷' }}
           </button>
@@ -130,6 +130,32 @@
       </div>
     </Teleport>
 
+    <!-- Publish Settings Dialog -->
+    <Teleport to="body">
+      <div class="modal-overlay" v-if="showPublishDialog" @click.self="showPublishDialog = false">
+        <div class="modal card" style="max-width:520px">
+          <h3>发布设置</h3>
+          <p class="text-secondary text-sm mt-sm">选择问卷推送的目标部门</p>
+
+          <!-- Department Tree -->
+          <div class="publish-section">
+            <h4>目标部门</h4>
+            <div class="publish-tree">
+              <div v-for="dept in publishDepts" :key="dept.id">
+                <PublishDeptNode :dept="dept" :level="0" :checked-ids="publishCheckedDepts" @toggle="toggleDeptCheck" />
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-actions">
+            <button class="btn btn-ghost" @click="showPublishDialog = false">取消</button>
+            <button class="btn btn-secondary btn-sm" @click="autoPopulateDepts" v-if="publishDepts.length">自动填充本部门及下级</button>
+            <button class="btn btn-primary" @click="confirmPublish">确认发布</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
     <!-- Share Dialog -->
     <Teleport to="body">
       <div class="modal-overlay" v-if="showShareDialog" @click.self="showShareDialog = false">
@@ -153,8 +179,9 @@
 
 <script setup>
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
-import { surveysAPI, questionsAPI } from '../api'
+import { surveysAPI, questionsAPI, departmentsAPI } from '../api'
 import SurveyEditor from '../components/survey/SurveyEditor.vue'
+import PublishDeptNode from '../components/survey/PublishDeptNode.vue'
 import StylePanel from '../components/survey/StylePanel.vue'
 import StatisticsPanel from '../components/statistics/StatisticsPanel.vue'
 
@@ -171,6 +198,11 @@ const showEditDialog = ref(false)
 const editingSurveyId = ref(null)
 const editTitle = ref('')
 const editDesc = ref('')
+
+const showPublishDialog = ref(false)
+const publishDepts = ref([])
+const publishCheckedDepts = ref([])
+const lastClickedDept = ref(null)
 
 const showShareDialog = ref(false)
 const qrCanvas = ref(null)
@@ -219,6 +251,61 @@ async function togglePublish() {
   const newStatus = s.status === 1 ? 0 : 1
   await surveysAPI.publish(s.id, newStatus)
   s.status = newStatus
+  await loadSurveys()
+}
+
+async function openPublishDialog() {
+  showPublishDialog.value = true
+  publishCheckedDepts.value = []
+  const { data } = await departmentsAPI.tree()
+  publishDepts.value = data
+  if (auth.user?.department) {
+    autoPopulateDepts()
+  }
+}
+
+function toggleDeptCheck(deptId) {
+  lastClickedDept.value = deptId
+  const arr = [...publishCheckedDepts.value]
+  const idx = arr.indexOf(deptId)
+  if (idx > -1) arr.splice(idx, 1)
+  else arr.push(deptId)
+  publishCheckedDepts.value = arr
+}
+
+function autoPopulateDepts() {
+  if (!lastClickedDept.value) {
+    // 未点击任何部门时，填充本部门及下级
+    if (!auth.user?.department) return
+    lastClickedDept.value = auth.user.department
+  }
+  const ids = []
+  function collectIds(list) {
+    for (const d of list) {
+      ids.push(d.id)
+      if (d.children) collectIds(d.children)
+    }
+  }
+  function findAndCollect(list) {
+    for (const d of list) {
+      if (d.id === lastClickedDept.value) {
+        collectIds([d])
+        return true
+      }
+      if (d.children && findAndCollect(d.children)) return true
+    }
+    return false
+  }
+  findAndCollect(publishDepts.value)
+  publishCheckedDepts.value = ids
+}
+
+async function confirmPublish() {
+  const s = currentSurvey.value
+  const deptIds = [...publishCheckedDepts.value]
+  await surveysAPI.publish(s.id, 1, deptIds)
+  s.status = 1
+  showPublishDialog.value = false
   await loadSurveys()
 }
 
@@ -428,4 +515,7 @@ watch(showShareDialog, async (val) => {
   display: flex;
   justify-content: center;
 }
+.publish-section { margin: var(--spacing-md) 0; }
+.publish-section h4 { font-size: 13px; margin-bottom: 8px; color: var(--color-text-secondary); }
+.publish-tree { max-height: 300px; overflow-y: auto; border: 1px solid var(--color-border-light); border-radius: var(--radius-md); padding: var(--spacing-sm); }
 </style>

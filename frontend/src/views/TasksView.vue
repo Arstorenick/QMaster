@@ -117,8 +117,12 @@ const submitting = ref(false)
 onMounted(loadTasks)
 
 async function loadTasks() {
-  const { data } = await surveysAPI.publicList().catch(() => ({ data: [] }))
-  tasks.value = data.map(s => ({ ...s, submitted: false, dept_name: '公开' }))
+  if (!auth.user?.department) {
+    tasks.value = []
+    return
+  }
+  const { data } = await surveysAPI.myTasks().catch(() => ({ data: [] }))
+  tasks.value = data.map(s => ({ ...s, submitted: false }))
 }
 
 function isAncestor(targetId, deptId) {
@@ -194,7 +198,7 @@ async function submitSurvey() {
 .task-item-meta { display: flex; align-items: center; gap: var(--spacing-sm); }
 .tasks-main { flex:1; overflow-y: auto; background: var(--color-bg); }
 .tasks-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; }
-.display-card { max-width: 700px; margin: var(--spacing-xl) auto; padding: var(--spacing-xl); }
+.display-card { max-width: 1400px; margin: var(--spacing-xl) auto; padding: var(--spacing-xl); }
 .display-header { text-align: center; margin-bottom: var(--spacing-xl); padding-bottom: var(--spacing-lg); border-bottom: 1px solid var(--color-border-light); }
 .display-q { padding: var(--spacing-lg) 0; border-bottom: 1px solid var(--color-border-light); }
 .dq-title { font-weight: 500; margin-bottom: var(--spacing-sm); }

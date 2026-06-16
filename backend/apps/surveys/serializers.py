@@ -63,11 +63,14 @@ class SurveyDetailSerializer(serializers.ModelSerializer):
     questions = QuestionSerializer(many=True, read_only=True)
     question_count = serializers.SerializerMethodField()
     submission_count = serializers.SerializerMethodField()
+    target_departments = serializers.SerializerMethodField()
+    owner_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Survey
         fields = ['id', 'title', 'description', 'status', 'style',
                   'questions', 'question_count', 'submission_count',
+                  'target_departments', 'owner_name',
                   'created_at', 'updated_at']
         read_only_fields = ['id', 'owner', 'question_count', 'submission_count',
                             'created_at', 'updated_at']
@@ -77,6 +80,12 @@ class SurveyDetailSerializer(serializers.ModelSerializer):
 
     def get_submission_count(self, obj):
         return obj.submissions.count()
+
+    def get_target_departments(self, obj):
+        return list(obj.target_departments.values_list('id', flat=True))
+
+    def get_owner_name(self, obj):
+        return obj.owner.username
 
 
 class StyleUpdateSerializer(serializers.ModelSerializer):

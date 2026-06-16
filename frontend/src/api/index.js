@@ -41,11 +41,12 @@ export const authAPI = {
 export const surveysAPI = {
   list: () => api.get('/api/surveys/'),
   publicList: () => api.get('/api/surveys/public/'),
+  myTasks: () => api.get('/api/surveys/my-tasks/'),
   create: (data) => api.post('/api/surveys/create/', data),
   get: (id) => api.get(`/api/surveys/${id}/`),
   update: (id, data) => api.put(`/api/surveys/${id}/`, data),
   delete: (id) => api.delete(`/api/surveys/${id}/`),
-  publish: (id, status) => api.patch(`/api/surveys/${id}/publish/`, { status }),
+  publish: (id, status, targetDepartments) => api.patch(`/api/surveys/${id}/publish/`, { status, target_departments: targetDepartments }),
   style: (id, style) => api.patch(`/api/surveys/${id}/style/`, { style }),
   public: (id) => api.get(`/api/surveys/${id}/public/`),
 }
