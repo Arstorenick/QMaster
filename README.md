@@ -1,6 +1,6 @@
 # QMaster — 问卷调查系统
 
-> 40+ 题型 | 可视化统计 | MySQL + Django + Vue 3 | Docker 一键部署
+> 多种题型 | 可视化统计 | MySQL + Django + Vue 3 | Docker 一键部署
 
 ## 快速开始
 
@@ -93,7 +93,7 @@ qmaster/
 └── nginx/             # Nginx 配置
 ```
 
-## 部署到内网 Linux 服务器
+## 部署到离线 Linux 服务器
 
 ```bash
 # 1. 服务器安装 Docker
