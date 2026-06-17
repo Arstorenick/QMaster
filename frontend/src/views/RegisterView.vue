@@ -2,7 +2,7 @@
   <div class="auth-page">
     <div class="auth-card card">
       <div class="auth-brand">
-        <span class="logo-icon">◆</span>
+        <img src="/logo.png" alt="QMaster" class="logo-icon-img" />
         <h2>注册 QMaster</h2>
         <p class="text-secondary">创建账号，开始使用</p>
       </div>
@@ -89,9 +89,10 @@ async function handleRegister() {
   text-align: center;
   margin-bottom: var(--spacing-xl);
 }
-.logo-icon {
-  font-size: 32px;
-  color: var(--color-primary);
+.logo-icon-img {
+  height: 72px;
+  width: auto;
+  margin-bottom: var(--spacing-sm);
 }
 .auth-brand h2 {
   margin-top: var(--spacing-md);

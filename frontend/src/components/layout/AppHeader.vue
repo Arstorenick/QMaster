@@ -3,8 +3,7 @@
     <div class="header-inner">
       <div class="header-left">
         <router-link :to="auth.isLoggedIn ? '/home' : '/'" class="logo">
-          <span class="logo-icon">◆</span>
-          <span class="logo-text">QMaster</span>
+          <img src="/QMaster.png" alt="QMaster" class="logo-img" />
         </router-link>
         <nav class="nav-links" v-if="auth.isLoggedIn && auth.isCreator">
           <router-link to="/home" class="nav-link">我的问卷</router-link>
@@ -71,15 +70,11 @@ async function handleLogout() {
 .logo {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: var(--font-size-lg);
-  font-weight: 700;
-  color: var(--color-text-primary);
   text-decoration: none;
 }
-.logo-icon {
-  color: var(--color-primary);
-  font-size: 20px;
+.logo-img {
+  height: 32px;
+  width: auto;
 }
 .nav-links {
   display: flex;
