@@ -12,6 +12,7 @@ class Submission(models.Model):
     submit_time = models.DateTimeField('提交时间', auto_now_add=True)
     submit_ip = models.GenericIPAddressField('提交 IP')
     duration_seconds = models.PositiveIntegerField('填写用时(秒)', default=0)
+    total_score = models.IntegerField('总分', null=True, blank=True)
 
     class Meta:
         db_table = 'submissions'

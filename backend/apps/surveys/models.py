@@ -15,6 +15,7 @@ class Survey(models.Model):
     status = models.SmallIntegerField('状态', choices=STATUS_CHOICES, default=0)
     is_deleted = models.BooleanField('已删除', default=False)
     style = models.JSONField('样式配置', default=dict, blank=True)
+    scoring_enabled = models.BooleanField('启用评分', default=False)
     target_departments = models.ManyToManyField(
         'users.Department', blank=True, related_name='targeted_surveys',
         verbose_name='定向部门'

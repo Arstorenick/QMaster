@@ -37,7 +37,14 @@ class DepartmentFlatSerializer(serializers.ModelSerializer):
 
 
 class RegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, min_length=6)
+    username = serializers.CharField(min_length=6, max_length=20)
+    password = serializers.CharField(write_only=True, min_length=8, max_length=20)
+
+    def validate_username(self, value):
+        import re
+        if not re.match(r'^[a-zA-Z0-9]+$', value):
+            raise serializers.ValidationError('账号仅允许字母和数字')
+        return value
 
     class Meta:
         model = User

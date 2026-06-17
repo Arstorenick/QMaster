@@ -1,43 +1,71 @@
 <template>
   <div class="style-panel">
     <div class="style-grid">
+      <!-- 题目标记 -->
       <div class="style-group card">
-        <h4>主题设置</h4>
-        <div class="form-group">
-          <label>主题色</label>
-          <div class="color-picker-row">
-            <input type="color" v-model="localStyle.theme_color" @change="save" />
-            <span class="text-sm text-secondary">{{ localStyle.theme_color }}</span>
+        <h4>题目标记</h4>
+        <p class="style-desc">控制题目旁边显示哪些辅助信息</p>
+        <label class="toggle-row">
+          <div>
+            <span>题号</span>
+            <small>显示 "1. 2. 3." 编号</small>
           </div>
-        </div>
-        <div class="form-group">
-          <label>背景色</label>
-          <input type="color" v-model="localStyle.bg_color" @change="save" />
-        </div>
-      </div>
-
-      <div class="style-group card">
-        <h4>显示设置</h4>
-        <label class="toggle-row" v-for="opt in toggles" :key="opt.key">
-          <span>{{ opt.label }}</span>
-          <input type="checkbox" v-model="localStyle[opt.key]" @change="save" />
+          <input type="checkbox" v-model="localStyle.show_question_number" @change="save" />
+        </label>
+        <label class="toggle-row">
+          <div>
+            <span>题型标签</span>
+            <small>显示 "单选题" "多选题" 等</small>
+          </div>
+          <input type="checkbox" v-model="localStyle.show_question_type" @change="save" />
+        </label>
+        <label class="toggle-row">
+          <div>
+            <span>题目分数</span>
+            <small>评分模式下显示每题分值</small>
+          </div>
+          <input type="checkbox" v-model="localStyle.show_question_score" @change="save" />
         </label>
       </div>
 
+      <!-- 问卷信息 -->
       <div class="style-group card">
-        <h4>图片设置</h4>
-        <div class="form-group">
-          <label>Logo URL</label>
-          <input v-model="localStyle.logo_image" class="input" placeholder="https://..." @blur="save" />
-        </div>
-        <div class="form-group">
-          <label>页眉图 URL</label>
-          <input v-model="localStyle.header_image" class="input" placeholder="https://..." @blur="save" />
-        </div>
-        <div class="form-group">
-          <label>背景图 URL</label>
-          <input v-model="localStyle.bg_image" class="input" placeholder="https://..." @blur="save" />
-        </div>
+        <h4>问卷信息</h4>
+        <p class="style-desc">顶部展示的问卷基本信息</p>
+        <label class="toggle-row">
+          <div>
+            <span>问卷标题</span>
+            <small>答题页顶部的大标题</small>
+          </div>
+          <input type="checkbox" v-model="localStyle.show_title" @change="save" />
+        </label>
+        <label class="toggle-row">
+          <div>
+            <span>问卷说明</span>
+            <small>标题下方的描述文字</small>
+          </div>
+          <input type="checkbox" v-model="localStyle.show_description" @change="save" />
+        </label>
+      </div>
+
+      <!-- 答题辅助 -->
+      <div class="style-group card">
+        <h4>答题辅助</h4>
+        <p class="style-desc">帮助答题人了解进度的功能</p>
+        <label class="toggle-row">
+          <div>
+            <span>进度条</span>
+            <small>多页问卷显示 "1/3" 进度</small>
+          </div>
+          <input type="checkbox" v-model="localStyle.show_progress" @change="save" />
+        </label>
+        <label class="toggle-row">
+          <div>
+            <span>移动端适配</span>
+            <small>手机浏览器自动调整布局</small>
+          </div>
+          <input type="checkbox" v-model="localStyle.mobile_adaptive" @change="save" />
+        </label>
       </div>
     </div>
   </div>
@@ -51,13 +79,6 @@ const props = defineProps({ survey: Object })
 const emit = defineEmits(['updated'])
 
 const defaults = {
-  theme_color: '#4F46E5',
-  bg_color: '#F9FAFB',
-  logo_image: '',
-  header_image: '',
-  bg_image: '',
-  logo_bg_color: '#FFFFFF',
-  progress_color: '#4F46E5',
   show_question_number: true,
   show_progress: true,
   show_title: true,
@@ -66,16 +87,6 @@ const defaults = {
   show_question_score: false,
   mobile_adaptive: true,
 }
-
-const toggles = [
-  { key: 'show_question_number', label: '显示题号' },
-  { key: 'show_progress', label: '显示进度条' },
-  { key: 'show_title', label: '显示标题' },
-  { key: 'show_description', label: '显示说明' },
-  { key: 'show_question_type', label: '显示题型标签' },
-  { key: 'show_question_score', label: '显示分数' },
-  { key: 'mobile_adaptive', label: '移动端自适应' },
-]
 
 const localStyle = reactive({ ...defaults, ...(props.survey?.style || {}) })
 
@@ -104,34 +115,40 @@ async function save() {
   padding: var(--spacing-lg);
 }
 .style-group h4 {
+  margin-bottom: 2px;
+  font-size: 17px;
+  font-weight: 600;
+}
+.style-desc {
+  font-size: 13px;
+  color: var(--color-text-tertiary);
   margin-bottom: var(--spacing-md);
-  font-size: var(--font-size-sm);
-}
-.form-group {
-  margin-bottom: var(--spacing-md);
-}
-.form-group label {
-  display: block;
-  font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
-  margin-bottom: 4px;
-}
-.color-picker-row {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
 }
 .toggle-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 0;
-  font-size: var(--font-size-sm);
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-border-light);
   cursor: pointer;
+}
+.toggle-row:last-child {
+  border-bottom: none;
+}
+.toggle-row span {
+  font-size: 16px;
+  font-weight: 500;
+}
+.toggle-row small {
+  display: block;
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+  margin-top: 2px;
 }
 .toggle-row input[type="checkbox"] {
   width: 18px;
   height: 18px;
   accent-color: var(--color-primary);
+  flex-shrink: 0;
 }
 </style>

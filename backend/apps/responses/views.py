@@ -76,6 +76,16 @@ def submit_survey(request, survey_id):
     )
     if serializer.is_valid():
         submission = serializer.save(survey=survey)
+        # 评分模式：自动计算总分
+        if survey.scoring_enabled:
+            total = 0
+            for ans in submission.answers.all():
+                if ans.option and ans.option.score:
+                    total += ans.option.score
+                elif ans.question.score:
+                    total += ans.question.score
+            submission.total_score = total
+            submission.save()
         return Response(
             SubmissionListSerializer(submission).data,
             status=status.HTTP_201_CREATED
@@ -95,6 +105,20 @@ def survey_statistics(request, survey_id):
     check_owner(request.user, survey)
 
     total_submissions = survey.submissions.count()
+
+    # 计算应提交人数（目标部门中所有用户，去重）
+    expected_count = 0
+    target_depts = survey.target_departments.all()
+    if target_depts.exists():
+        expected_users = set()
+        for dept in target_depts:
+            for user in dept.get_all_members():
+                expected_users.add(user.id)
+        expected_count = len(expected_users)
+    else:
+        from apps.users.models import User
+        expected_count = User.objects.count()
+
     questions = survey.questions.exclude(
         type__in=['page_break', 'section_break', 'divider', 'image_carousel']
     ).order_by('order')
@@ -126,6 +150,8 @@ def survey_statistics(request, survey_id):
     return Response({
         'survey_title': survey.title,
         'total_submissions': total_submissions,
+        'expected_submissions': expected_count,
+        'remaining_submissions': max(0, expected_count - total_submissions),
         'questions': results,
     })
 
@@ -158,6 +184,43 @@ def _calc_avg(question, survey):
 # ══════════════════════════════════════════════════════════
 #  Text Answers
 # ══════════════════════════════════════════════════════════
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def statistics_detail(request, survey_id, detail_type):
+    """统计名单详情：expected(应提交) / submitted(已提交) / remaining(尚未提交)"""
+    from apps.users.models import User
+    from apps.users.serializers import UserSerializer
+
+    survey = get_object_or_404(Survey, id=survey_id, is_deleted=False)
+    check_owner(request.user, survey)
+
+    target_depts = survey.target_departments.all()
+    expected_users = set()
+    if target_depts.exists():
+        for dept in target_depts:
+            for u in dept.get_all_members():
+                expected_users.add(u.id)
+        all_expected = User.objects.filter(id__in=expected_users)
+    else:
+        all_expected = User.objects.all()
+
+    submitted_ids = set(
+        survey.submissions.values_list('respondent_info__username', flat=True)
+    )
+    submitted_users = User.objects.filter(username__in=submitted_ids)
+
+    if detail_type == 'expected':
+        users = all_expected
+    elif detail_type == 'submitted':
+        users = submitted_users
+    elif detail_type == 'remaining':
+        users = all_expected.exclude(id__in=submitted_users.values_list('id', flat=True))
+    else:
+        return Response({'detail': '无效类型'}, status=400)
+
+    return Response({'users': UserSerializer(users, many=True).data})
+
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])

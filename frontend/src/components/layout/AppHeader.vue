@@ -20,8 +20,8 @@
           <a class="header-user-link header-logout" @click="handleLogout">退出</a>
         </template>
         <template v-else>
-          <router-link to="/login" class="btn btn-ghost btn-sm">登录</router-link>
-          <router-link to="/register" class="btn btn-primary btn-sm">注册</router-link>
+          <router-link to="/login" class="header-user-link header-name">登录</router-link>
+          <router-link to="/register" class="btn btn-primary header-btn">注册</router-link>
         </template>
       </div>
     </div>
@@ -82,7 +82,7 @@ async function handleLogout() {
 }
 .nav-link {
   padding: 6px 14px;
-  font-size: var(--font-size-sm);
+  font-size: 15px;
   color: var(--color-text-secondary);
   border-radius: var(--radius-md);
   transition: all var(--transition-fast);
@@ -109,6 +109,14 @@ async function handleLogout() {
 }
 .header-logout:hover {
   color: var(--color-danger);
+}
+.header-btn {
+  font-size: 15px !important;
+  padding: 6px 18px !important;
+  color: #fff !important;
+}
+.header-btn:hover {
+  color: #fff !important;
 }
 .user-name {
   font-size: var(--font-size-sm);

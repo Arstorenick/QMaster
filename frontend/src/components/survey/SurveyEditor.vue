@@ -1,5 +1,20 @@
 <template>
   <div class="editor-layout">
+    <!-- Mode Selector -->
+    <div class="mode-bar" v-if="!readonly">
+      <div class="mode-tabs">
+        <button :class="['mode-tab', { active: !scoringEnabled }]" @click="$emit('toggleScoring', false)">
+          <span class="mode-icon">📝</span>
+          <span>正常模式</span>
+        </button>
+        <button :class="['mode-tab', { active: scoringEnabled }]" @click="$emit('toggleScoring', true)">
+          <span class="mode-icon">⭐</span>
+          <span>评分模式</span>
+        </button>
+      </div>
+      <span class="mode-hint" v-if="scoringEnabled">每题可设置分数，提交时自动计算总分</span>
+    </div>
+
     <!-- Question Type Toolbar -->
     <div class="type-toolbar" v-if="!readonly">
       <div class="type-group" v-for="group in typeGroups" :key="group.label">
@@ -67,10 +82,21 @@
               @blur="updateQuestion(q)"
             />
             <div class="q-header-actions">
+              <input
+                v-if="scoringEnabled && !readonly"
+                v-model.number="q.score"
+                class="score-input"
+                type="number"
+                min="0"
+                placeholder="分值"
+                @blur="updateQuestion(q)"
+                title="题目分值"
+              />
               <label class="required-toggle" v-if="!readonly">
                 <input type="checkbox" v-model="q.is_required" @change="updateQuestion(q)" />
                 <span>必填</span>
               </label>
+              <button v-if="!readonly" class="btn btn-ghost btn-sm" @click="copyQuestion(q)">复制</button>
               <button v-if="!readonly" class="btn btn-ghost btn-sm" @click="deleteQuestion(q.id)">删除</button>
             </div>
           </div>
@@ -85,6 +111,16 @@
                 :placeholder="`选项 ${opt.order + 1}`"
                 :disabled="readonly"
                 @blur="updateOption(q, opt)"
+              />
+              <input
+                v-if="scoringEnabled && !readonly"
+                v-model.number="opt.score"
+                class="score-input score-input-sm"
+                type="number"
+                min="0"
+                placeholder="分"
+                @blur="updateOption(q, opt)"
+                title="选项分值"
               />
               <button v-if="!readonly" class="btn btn-ghost btn-sm" @click="deleteOption(q, opt.id)" style="color:var(--color-danger)">×</button>
             </div>
@@ -145,8 +181,9 @@ const props = defineProps({
   survey: Object,
   questions: Array,
   readonly: { type: Boolean, default: false },
+  scoringEnabled: { type: Boolean, default: false },
 })
-const emit = defineEmits(['refresh'])
+const emit = defineEmits(['refresh', 'toggleScoring'])
 
 const dragging = ref(false)
 
@@ -254,6 +291,21 @@ async function updateQuestion(q) {
   })
 }
 
+async function copyQuestion(q) {
+  const newOpts = q.options.map((opt, i) => ({
+    title: opt.title, order: i, score: opt.score, image: opt.image,
+  }))
+  await questionsAPI.create(props.survey.id, {
+    type: q.type,
+    title: q.title + ' (副本)',
+    is_required: q.is_required,
+    config: { ...q.config },
+    score: q.score,
+    options: newOpts,
+  })
+  emit('refresh')
+}
+
 async function deleteQuestion(qId) {
   if (!confirm('确定删除此题？')) return
   await questionsAPI.delete(props.survey.id, qId)
@@ -280,6 +332,50 @@ async function deleteOption(q, optId) {
   padding: var(--spacing-lg);
   max-width: 1400px;
   margin: 0 auto;
+}
+.mode-bar {
+  margin-bottom: var(--spacing-md);
+}
+.mode-tabs {
+  display: flex;
+  gap: 2px;
+  background: var(--color-bg);
+  border-radius: var(--radius-md);
+  padding: 4px;
+  display: inline-flex;
+}
+.mode-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 20px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 14px;
+  font-family: var(--font-family);
+  color: var(--color-text-secondary);
+  transition: all var(--transition-fast);
+}
+.mode-tab:hover {
+  color: var(--color-text-primary);
+}
+.mode-tab.active {
+  background: var(--color-bg-white);
+  color: var(--color-primary);
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+}
+.mode-icon {
+  font-size: 18px;
+}
+.mode-hint {
+  display: inline-block;
+  margin-left: var(--spacing-md);
+  font-size: 12px;
+  color: var(--color-warning);
+  vertical-align: middle;
 }
 .type-toolbar {
   display: flex;
@@ -450,6 +546,23 @@ async function deleteOption(q, optId) {
   color: var(--color-text-primary);
   cursor: default;
   opacity: 1;
+}
+.score-input {
+  width: 50px;
+  padding: 2px 6px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  text-align: center;
+  font-family: var(--font-family);
+  outline: none;
+  color: var(--color-warning);
+}
+.score-input:focus {
+  border-color: var(--color-warning);
+}
+.score-input-sm {
+  width: 40px;
 }
 .q-header-actions {
   display: flex;

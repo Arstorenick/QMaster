@@ -32,10 +32,14 @@
     <!-- Right: Survey Display -->
     <section class="tasks-main">
       <template v-if="activeSurvey">
-        <div class="display-card card" v-if="!submitted">
-          <div class="display-header" v-if="activeSurvey.style?.show_title !== false || true">
+        <div class="display-card card" v-if="!submitted" :style="taskCardStyle">
+          <div class="display-logo" v-if="activeSurvey.style?.logo_image" :style="{ backgroundColor: activeSurvey.style?.logo_bg_color || '#fff' }">
+            <img :src="activeSurvey.style.logo_image" alt="Logo" />
+          </div>
+          <img v-if="activeSurvey.style?.header_image" :src="activeSurvey.style.header_image" class="display-header-img" alt="Header" />
+          <div class="display-header" v-if="activeSurvey.style?.show_title !== false">
             <h2>{{ activeSurvey.title }}</h2>
-            <p class="text-secondary text-sm" v-if="activeSurvey.description">{{ activeSurvey.description }}</p>
+            <p class="text-secondary text-sm" v-if="activeSurvey.description && activeSurvey.style?.show_description !== false">{{ activeSurvey.description }}</p>
           </div>
           <!-- Current Page Questions -->
           <template v-for="q in currentPageQuestions" :key="q.id">
@@ -190,6 +194,14 @@ const pages = computed(() => {
 
 const currentPageQuestions = computed(() => pages.value[currentPage.value] || [])
 
+const taskCardStyle = computed(() => {
+  const s = activeSurvey.value?.style || {}
+  return {
+    '--survey-theme': s.theme_color || '#4F46E5',
+    '--survey-progress': s.progress_color || s.theme_color || '#4F46E5',
+  }
+})
+
 onMounted(loadTasks)
 
 function formatDate(d) {
@@ -300,12 +312,12 @@ async function submitSurvey() {
 .sidebar-header { padding: var(--spacing-md); border-bottom: 1px solid var(--color-border-light); }
 .sidebar-header h3 { font-size: var(--font-size-sm); }
 .task-list { flex:1; overflow-y: auto; padding: var(--spacing-sm); }
-.task-item { padding: var(--spacing-sm) var(--spacing-md); border-radius: var(--radius-md); cursor: pointer; margin-bottom: 2px; transition: all var(--transition-fast); }
+.task-item { padding: var(--spacing-sm) var(--spacing-md); border-radius: var(--radius-md); cursor: pointer; margin-bottom: 2px; transition: all var(--transition-fast); background: var(--color-bg); }
 .task-item:hover { background: var(--color-bg-hover); }
-.task-item.active { background: var(--color-primary-light); }
+.task-item.active { background: var(--color-primary-light); box-shadow: inset 3px 0 0 var(--color-primary); }
 .task-item-title { font-size: var(--font-size-sm); font-weight: 500; margin-bottom: 4px; }
 .task-item-meta { display: flex; align-items: center; gap: var(--spacing-sm); }
-.tasks-main { flex:1; overflow-y: auto; background: var(--color-bg); }
+.tasks-main { flex:1; overflow-y: auto; background: var(--color-bg); padding: var(--spacing-lg); }
 .tasks-empty {
   display: flex; align-items: center; justify-content: center;
   height: 100%; min-height: 400px;
@@ -325,8 +337,12 @@ async function submitSurvey() {
   from { opacity: 0; transform: translateY(16px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.display-card { max-width: 1400px; margin: var(--spacing-xl) auto; padding: var(--spacing-xl); }
+.display-card { max-width: 1400px; margin: 0 auto var(--spacing-md); padding: var(--spacing-lg); }
+.display-logo { text-align: center; padding: var(--spacing-md); border-radius: var(--radius-md) var(--radius-md) 0 0; }
+.display-logo img { max-height: 60px; }
+.display-header-img { width: 100%; max-height: 200px; object-fit: cover; border-radius: var(--radius-md) var(--radius-md) 0 0; }
 .display-header { text-align: center; margin-bottom: var(--spacing-xl); padding-bottom: var(--spacing-lg); border-bottom: 1px solid var(--color-border-light); }
+.dq-num { color: var(--survey-theme); }
 .display-q { padding: var(--spacing-lg) 0; border-bottom: 1px solid var(--color-border-light); }
 .dq-title { font-weight: 500; margin-bottom: var(--spacing-sm); }
 .dq-num { color: var(--color-primary); font-weight: 600; }

@@ -37,4 +37,4 @@ class SubmissionCreateSerializer(serializers.ModelSerializer):
 class SubmissionListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Submission
-        fields = ['id', 'submit_time', 'submit_ip', 'duration_seconds']
+        fields = ['id', 'submit_time', 'submit_ip', 'duration_seconds', 'total_score']

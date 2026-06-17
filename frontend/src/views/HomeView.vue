@@ -70,7 +70,9 @@
         :survey="currentSurvey"
         :questions="questions"
         :readonly="currentSurvey.status !== 0"
+        :scoring-enabled="currentSurvey.scoring_enabled"
         @refresh="loadQuestions"
+        @toggleScoring="toggleScoring"
       />
 
       <!-- Style Tab -->
@@ -357,6 +359,12 @@ function previewSurvey() {
   }
 }
 
+async function toggleScoring(enabled) {
+  const s = currentSurvey.value
+  s.scoring_enabled = enabled
+  await surveysAPI.update(s.id, { scoring_enabled: enabled })
+}
+
 function onStyleUpdated() {
   loadSurveys()
 }
@@ -436,9 +444,10 @@ watch(showShareDialog, async (val) => {
   cursor: pointer;
   transition: all var(--transition-fast);
   margin-bottom: 2px;
+  background: var(--color-bg);
 }
 .survey-item:hover { background: var(--color-bg-hover); }
-.survey-item.active { background: var(--color-primary-light); }
+.survey-item.active { background: var(--color-primary-light); box-shadow: inset 3px 0 0 var(--color-primary); }
 .survey-item-title {
   font-size: var(--font-size-sm);
   font-weight: 500;
@@ -551,6 +560,8 @@ watch(showShareDialog, async (val) => {
   justify-content: center;
 }
 .publish-section { margin: var(--spacing-md) 0; }
+.scoring-toggle { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--color-text-secondary); cursor: pointer; user-select: none; }
+.scoring-toggle input { accent-color: var(--color-warning); }
 .lock-banner { padding: var(--spacing-md) var(--spacing-xl); background: var(--color-warning-light); border-bottom: 1px solid #FDE68A; text-align: center; font-size: 13px; color: #92400E; }
 .publish-tree { max-height: 300px; overflow-y: auto; border: 1px solid var(--color-border-light); border-radius: var(--radius-md); padding: var(--spacing-sm); }
 </style>

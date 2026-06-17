@@ -2,9 +2,17 @@
   <div class="stats-panel">
     <div class="stats-header">
       <div class="stats-summary">
-        <div class="stat-card">
-          <span class="stat-num">{{ stats?.total_submissions || 0 }}</span>
-          <span class="stat-label">总提交数</span>
+        <div class="stat-card stat-clickable" style="border-color: var(--color-primary); --hover-bg: var(--color-primary-light)" @click="showDetail('expected')">
+          <span class="stat-num">{{ stats?.expected_submissions || 0 }}</span>
+          <span class="stat-label">应提交人数</span>
+        </div>
+        <div class="stat-card stat-clickable" style="border-color: var(--color-success); --hover-bg: var(--color-success-light)" @click="showDetail('submitted')">
+          <span class="stat-num" style="color: var(--color-success)">{{ stats?.total_submissions || 0 }}</span>
+          <span class="stat-label" style="color: var(--color-success)">已提交人数</span>
+        </div>
+        <div class="stat-card stat-clickable" style="border-color: var(--color-danger); --hover-bg: var(--color-danger-light)" @click="showDetail('remaining')">
+          <span class="stat-num" style="color: var(--color-danger)">{{ stats?.remaining_submissions || 0 }}</span>
+          <span class="stat-label" style="color: var(--color-danger)">未提交人数</span>
         </div>
       </div>
       <button class="btn btn-secondary btn-sm" @click="exportExcel">导出 Excel</button>
@@ -13,6 +21,27 @@
     <div v-if="!stats?.questions?.length" class="stats-empty text-center">
       <p style="font-size:48px;margin-bottom:12px">📊</p>
       <p class="text-secondary">{{ stats?.total_submissions ? '暂无分析数据' : '还没有人提交问卷' }}</p>
+    </div>
+
+    <!-- Detail Panel -->
+    <div class="detail-panel" v-if="detailDialog">
+      <div class="detail-inner">
+        <div class="detail-header">
+          <h3>{{ detailTitle }}</h3>
+          <span class="detail-count">{{ detailList.length }} 人</span>
+          <button class="btn btn-ghost btn-sm detail-close" @click="detailDialog = null">✕</button>
+        </div>
+        <div class="detail-body" v-if="detailList.length">
+          <div class="detail-item" v-for="u in detailList" :key="u.id">
+            <span class="detail-avatar">{{ (u.display_name || u.username).charAt(0) }}</span>
+            <div class="detail-info">
+              <span class="detail-name">{{ u.display_name || u.username }}</span>
+              <span class="detail-meta">{{ u.employee_id || '无工号' }} · {{ u.department_name || '无部门' }}</span>
+            </div>
+          </div>
+        </div>
+        <p v-else class="text-secondary text-center" style="padding:var(--spacing-xl)">暂无数据</p>
+      </div>
     </div>
 
     <div v-for="q in stats?.questions" :key="q.question_id" class="stat-question card">
@@ -79,11 +108,12 @@
         </div>
       </template>
     </div>
+
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, onMounted, watch, nextTick } from 'vue'
 import { responsesAPI } from '../../api'
 import * as echarts from 'echarts'
 
@@ -100,11 +130,30 @@ const chartTypes = [
   { value: 'horizontal', label: '条形图' },
 ]
 
+const detailDialog = ref(null)
+const detailTitle = ref('')
+const detailList = ref([])
+
 const textDialog = ref(null)
 const textAnswers = ref([])
 const textPage = ref(1)
 
 onMounted(loadStats)
+watch(() => props.survey?.id, () => { detailDialog.value = null; loadStats() })
+
+async function showDetail(type) {
+  detailDialog.value = type
+  if (type === 'expected') detailTitle.value = '应提交人员名单'
+  else if (type === 'submitted') detailTitle.value = '已提交人员名单'
+  else detailTitle.value = '尚未提交人员名单'
+
+  try {
+    const { data } = await responsesAPI.statisticsDetail(props.survey.id, type)
+    detailList.value = data.users || []
+  } catch {
+    detailList.value = []
+  }
+}
 
 async function loadStats() {
   const { data } = await responsesAPI.statistics(props.survey.id)
@@ -196,6 +245,7 @@ async function exportExcel() {
   max-width: 1400px;
   margin: 0 auto;
 }
+.stats-summary { display: flex; gap: var(--spacing-md); }
 .stats-header {
   display: flex;
   align-items: center;
@@ -208,6 +258,7 @@ async function exportExcel() {
   background: var(--color-bg-white);
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border-light);
+  width: 180px;
 }
 .stat-num {
   font-size: var(--font-size-2xl);
@@ -217,7 +268,49 @@ async function exportExcel() {
 }
 .stat-label {
   font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+.stat-clickable { cursor: pointer; transition: all var(--transition-fast); border-width: 2px; }
+.stat-clickable:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); background: var(--hover-bg, var(--color-bg-white)); }
+
+.detail-panel {
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-white);
+  overflow: hidden;
+  margin-top: var(--spacing-md);
+  animation: fadeInUp 0.25s ease;
+}
+.detail-inner { max-height: 400px; display: flex; flex-direction: column; }
+.detail-header {
+  display: flex; align-items: center; gap: var(--spacing-sm);
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-bottom: 1px solid var(--color-border-light);
+  background: var(--color-bg);
+}
+.detail-header h3 { font-size: 15px; flex: 1; }
+.detail-count { font-size: 12px; color: var(--color-text-tertiary); background: var(--color-bg-white); padding: 2px 10px; border-radius: 10px; }
+.detail-close { font-size: 16px; padding: 4px 8px; }
+.detail-body { flex: 1; overflow-y: auto; padding: var(--spacing-sm); }
+.detail-item {
+  display: flex; align-items: center; gap: var(--spacing-sm);
+  padding: 8px 12px; border-radius: var(--radius-md);
+  transition: background var(--transition-fast);
+}
+.detail-item:hover { background: var(--color-bg-hover); }
+.detail-avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--color-primary-light); color: var(--color-primary);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 700; flex-shrink: 0;
+}
+.detail-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.detail-name { font-size: 14px; font-weight: 500; }
+.detail-meta { font-size: 12px; color: var(--color-text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 .stats-empty {
   padding: var(--spacing-2xl);

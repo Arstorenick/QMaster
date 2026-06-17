@@ -3,7 +3,7 @@
     <div class="auth-card card">
       <div class="auth-brand">
         <img src="/logo.png" alt="QMaster" class="logo-icon-img" />
-        <h2>登录 QMaster</h2>
+        <h2>登录到QMaster</h2>
         <p class="text-secondary">欢迎回来</p>
       </div>
       <form @submit.prevent="handleLogin" class="auth-form">

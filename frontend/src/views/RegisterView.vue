@@ -3,28 +3,25 @@
     <div class="auth-card card">
       <div class="auth-brand">
         <img src="/logo.png" alt="QMaster" class="logo-icon-img" />
-        <h2>注册 QMaster</h2>
+        <h2>注册QMaster</h2>
         <p class="text-secondary">创建账号，开始使用</p>
       </div>
       <form @submit.prevent="handleRegister" class="auth-form">
         <div class="form-group">
-          <label>用户名</label>
-          <input v-model="form.username" class="input" placeholder="3-20 位字母数字" autocomplete="username" />
+          <label>账号</label>
+          <input v-model="form.username" class="input" placeholder="请输入6-20位字母或数字" autocomplete="username" />
         </div>
         <div class="form-group">
-          <label>邮箱（选填）</label>
-          <input v-model="form.email" class="input" type="email" placeholder="your@email.com" autocomplete="email" />
+          <label>用户名</label>
+          <input v-model="form.display_name" class="input" placeholder="请输入真实姓名" />
         </div>
         <div class="form-group">
           <label>密码</label>
-          <input v-model="form.password" class="input" type="password" placeholder="至少 6 位" autocomplete="new-password" />
+          <input v-model="form.password" class="input" type="password" placeholder="8-20位，支持大小写字母、数字及特殊符号" autocomplete="new-password" />
         </div>
         <div class="form-group">
-          <label>角色</label>
-          <select v-model="form.role" class="input">
-            <option :value="3">用户</option>
-            <option :value="2">管理员</option>
-          </select>
+          <label>确认密码</label>
+          <input v-model="form.confirmPassword" class="input" type="password" placeholder="再次输入密码" autocomplete="new-password" />
         </div>
         <p v-if="error" class="form-error">{{ error }}</p>
         <button type="submit" class="btn btn-primary btn-lg btn-block" :disabled="loading">
@@ -46,24 +43,21 @@ import { useAuthStore } from '../stores/auth'
 const router = useRouter()
 const auth = useAuthStore()
 
-const form = reactive({ username: '', email: '', password: '', role: 3 })
+const form = reactive({ username: '', display_name: '', password: '', confirmPassword: '' })
 const loading = ref(false)
 const error = ref('')
 
 async function handleRegister() {
   error.value = ''
-  if (form.password.length < 6) {
-    error.value = '密码至少 6 位'
-    return
-  }
+  if (!form.username.trim()) { error.value = '请输入账号'; return }
+  if (form.username.length < 6 || form.username.length > 20) { error.value = '请输入正确长度的账号'; return }
+  if (!/^[a-zA-Z0-9]+$/.test(form.username)) { error.value = '账号仅允许使用字母和数字，不可包含其他符号'; return }
+  if (form.password.length < 8 || form.password.length > 20) { error.value = '请输入正确的密码'; return }
+  if (form.password !== form.confirmPassword) { error.value = '两次输入的密码不一致'; return }
   loading.value = true
   try {
-    await auth.register(form.username, form.email, form.password, form.role)
-    if (form.role === 2) {
-      router.push('/home')
-    } else {
-      router.push('/')
-    }
+    await auth.register(form.username.trim(), '', form.password, 3)
+    router.push('/tasks')
   } catch (e) {
     error.value = e.response?.data?.username?.[0] || e.response?.data?.password?.[0] || '注册失败'
   } finally {

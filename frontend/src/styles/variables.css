@@ -1,13 +1,13 @@
 :root {
   /* ── Brand ── */
-  --color-primary: #4F46E5;
-  --color-primary-light: #EEF2FF;
-  --color-primary-dark: #4338CA;
-  --color-primary-50: #EEF2FF;
-  --color-primary-100: #E0E7FF;
-  --color-primary-500: #6366F1;
-  --color-primary-600: #4F46E5;
-  --color-primary-700: #4338CA;
+  --color-primary: #2563EB;
+  --color-primary-light: #EFF6FF;
+  --color-primary-dark: #1D4ED8;
+  --color-primary-50: #EFF6FF;
+  --color-primary-100: #DBEAFE;
+  --color-primary-500: #3B82F6;
+  --color-primary-600: #2563EB;
+  --color-primary-700: #1D4ED8;
 
   /* ── Semantic ── */
   --color-success: #10B981;
@@ -71,6 +71,6 @@
 
   /* ── Layout ── */
   --header-height: 56px;
-  --sidebar-width: 300px;
+  --sidebar-width: 360px;
   --max-width: 1200px;
 }

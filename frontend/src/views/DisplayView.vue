@@ -3,7 +3,13 @@
     <div class="display-container">
       <template v-for="page in pages" :key="page.index">
         <div class="display-card card" v-show="page.index === currentPage">
-          <!-- Header -->
+          <!-- Logo -->
+          <div class="display-logo" v-if="style?.logo_image" :style="{ backgroundColor: style?.logo_bg_color || '#fff' }">
+            <img :src="style.logo_image" alt="Logo" />
+          </div>
+          <!-- Header Image -->
+          <img v-if="style?.header_image" :src="style.header_image" class="display-header-img" alt="Header" />
+          <!-- Title -->
           <div class="display-header" v-if="style?.show_title || style?.show_description">
             <h1 v-if="style?.show_title">{{ survey.title }}</h1>
             <p v-if="style?.show_description" class="text-secondary">{{ survey.description }}</p>
@@ -174,11 +180,19 @@ const typeLabels = {
   file_upload: '上传', image_radio: '图片单选', image_checkbox: '图片多选',
 }
 
-const pageStyle = computed(() => ({
-  '--bg-color': style.value.bg_color || '#F9FAFB',
-  backgroundColor: 'var(--bg-color)',
-  backgroundImage: style.value.bg_image ? `url(${style.value.bg_image})` : 'none',
-}))
+const pageStyle = computed(() => {
+  const s = style.value || {}
+  return {
+    '--survey-theme': s.theme_color || '#4F46E5',
+    '--survey-bg': s.bg_color || '#F9FAFB',
+    '--survey-progress': s.progress_color || s.theme_color || '#4F46E5',
+    '--survey-logo-bg': s.logo_bg_color || '#FFFFFF',
+    backgroundColor: 'var(--survey-bg)',
+    backgroundImage: s.bg_image ? `url(${s.bg_image})` : 'none',
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+  }
+})
 
 onMounted(async () => {
   try {
@@ -285,15 +299,19 @@ async function submit() {
 <style scoped>
 .display-page {
   min-height: calc(100vh - var(--header-height));
-  padding: var(--spacing-lg);
 }
 .display-container {
-  max-width: 700px;
+  max-width: 1400px;
   margin: 0 auto;
+  padding: var(--spacing-lg);
 }
+.display-logo { text-align: center; padding: var(--spacing-md); border-radius: var(--radius-md) var(--radius-md) 0 0; }
+.display-logo img { max-height: 60px; }
+.display-header-img { width: 100%; max-height: 200px; object-fit: cover; border-radius: var(--radius-md) var(--radius-md) 0 0; }
 .display-card {
-  padding: var(--spacing-xl);
-  margin-bottom: var(--spacing-lg);
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
+  border-radius: var(--radius-md);
 }
 .display-header {
   text-align: center;
@@ -313,7 +331,7 @@ async function submit() {
 }
 .progress-fill {
   height: 100%;
-  background: var(--color-primary);
+  background: var(--survey-progress);
   border-radius: 3px;
   transition: width var(--transition-normal);
 }
@@ -324,6 +342,9 @@ async function submit() {
   font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
 }
+.dq-num { color: var(--survey-theme); }
+.btn-primary { background: var(--survey-theme); border-color: var(--survey-theme); }
+.btn-primary:hover { background: var(--survey-theme); filter: brightness(0.9); }
 .display-question {
   padding: var(--spacing-lg) 0;
   border-bottom: 1px solid var(--color-border-light);

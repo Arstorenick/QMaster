@@ -76,6 +76,7 @@ export const optionsAPI = {
 export const responsesAPI = {
   submit: (surveyId, data) => api.post(`/api/responses/${surveyId}/submit/`, data),
   statistics: (surveyId) => api.get(`/api/responses/${surveyId}/statistics/`),
+  statisticsDetail: (surveyId, type) => api.get(`/api/responses/${surveyId}/statistics/${type}/`),
   exportExcel: (surveyId) =>
     api.get(`/api/responses/${surveyId}/statistics/export/`, { responseType: 'blob' }),
   textAnswers: (surveyId, qId, page = 1) =>
