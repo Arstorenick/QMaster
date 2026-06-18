@@ -3,7 +3,7 @@
     <div class="auth-card card">
       <div class="auth-brand">
         <img src="/logo.png" alt="QMaster" class="logo-icon-img" />
-        <h2>注册QMaster</h2>
+        <h2>注册新账号</h2>
         <p class="text-secondary">创建账号，开始使用</p>
       </div>
       <form @submit.prevent="handleRegister" class="auth-form">
@@ -84,7 +84,7 @@ async function handleRegister() {
   margin-bottom: var(--spacing-xl);
 }
 .logo-icon-img {
-  height: 72px;
+  height: 95px;
   width: auto;
   margin-bottom: var(--spacing-sm);
 }

@@ -4,12 +4,12 @@
     <div class="mode-bar" v-if="!readonly">
       <div class="mode-tabs">
         <button :class="['mode-tab', { active: !scoringEnabled }]" @click="$emit('toggleScoring', false)">
-          <span class="mode-icon">📝</span>
+          <img :src="normalModeImg" alt="normal" class="mode-icon-img" />
           <span>正常模式</span>
         </button>
         <button :class="['mode-tab', { active: scoringEnabled }]" @click="$emit('toggleScoring', true)">
-          <span class="mode-icon">⭐</span>
-          <span>评分模式</span>
+          <img :src="scoreModeImg" alt="score" class="mode-icon-img" />
+          <span>分值模式</span>
         </button>
       </div>
       <span class="mode-hint" v-if="scoringEnabled">每题可设置分数，提交时自动计算总分</span>
@@ -24,7 +24,7 @@
             v-for="t in group.types" :key="t.value"
             class="type-btn"
             @click="addQuestion(t.value)"
-          ><span class="type-btn-icon">{{ t.icon }}</span><span class="type-btn-label">{{ t.label }}</span></button>
+          ><img v-if="t.img" :src="t.img" class="type-btn-icon-img" /><span v-else class="type-btn-icon">{{ t.icon }}</span><span class="type-btn-label">{{ t.label }}</span></button>
         </div>
       </div>
     </div>
@@ -166,7 +166,7 @@
       </template>
     </draggable>
     <div v-if="!questions.length" class="editor-empty">
-      <p style="font-size:40px;margin-bottom:12px">📝</p>
+      <img :src="addImg" alt="add" style="width:150px;height:150px;object-fit:contain;margin:0 auto 12px;display:block" />
       <p class="text-secondary">点击上方题型按钮添加题目</p>
     </div>
   </div>
@@ -176,6 +176,13 @@
 import { ref } from 'vue'
 import draggable from 'vuedraggable'
 import { questionsAPI, optionsAPI } from '../../api'
+import addImg from '../../assets/add.png'
+import normalModeImg from '../../assets/model_normal.png'
+import scoreModeImg from '../../assets/model_score.png'
+import singleImg from '../../assets/question_single.png'
+import multipleImg from '../../assets/question_multiple.png'
+import fillImg from '../../assets/question_fill.png'
+import ratingImg from '../../assets/question_rating.png'
 
 const props = defineProps({
   survey: Object,
@@ -197,9 +204,9 @@ const typeGroups = [
   {
     label: '基础',
     types: [
-      { value: 'radio', label: '单选', icon: '⭕' },
-      { value: 'checkbox', label: '多选', icon: '☑️' },
-      { value: 'text', label: '填空', icon: '✏️' },
+      { value: 'radio', label: '单选', img: singleImg },
+      { value: 'checkbox', label: '多选', img: multipleImg },
+      { value: 'text', label: '填空', img: fillImg },
       { value: 'textarea', label: '多行文本', icon: '📝' },
       { value: 'dropdown', label: '下拉', icon: '📋' },
     ],
@@ -207,7 +214,7 @@ const typeGroups = [
   {
     label: '高级',
     types: [
-      { value: 'rating', label: '评分', icon: '⭐' },
+      { value: 'rating', label: '评分', img: ratingImg },
       { value: 'ranking', label: '排序', icon: '🔢' },
       { value: 'scale', label: '量表', icon: '📏' },
       { value: 'slider', label: '滑块', icon: '🎚️' },
@@ -367,9 +374,7 @@ async function deleteOption(q, optId) {
   font-weight: 600;
   box-shadow: var(--shadow-sm);
 }
-.mode-icon {
-  font-size: 18px;
-}
+.mode-icon-img { width: 22px; height: 22px; object-fit: contain; flex-shrink: 0; }
 .mode-hint {
   display: inline-block;
   margin-left: var(--spacing-md);
@@ -424,6 +429,9 @@ async function deleteOption(q, optId) {
 .type-btn-icon {
   font-size: 18px;
   line-height: 1;
+}
+.type-btn-icon-img {
+  width: 20px; height: 20px; object-fit: contain;
 }
 .type-btn-label {
   font-size: var(--font-size-xs);

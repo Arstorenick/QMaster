@@ -3,7 +3,7 @@
     <div class="auth-card card">
       <div class="auth-brand">
         <img src="/logo.png" alt="QMaster" class="logo-icon-img" />
-        <h2>登录到QMaster</h2>
+        <h2>登录至问卷系统</h2>
         <p class="text-secondary">欢迎回来</p>
       </div>
       <form @submit.prevent="handleLogin" class="auth-form">
@@ -71,7 +71,7 @@ async function handleLogin() {
   margin-bottom: var(--spacing-xl);
 }
 .logo-icon-img {
-  height: 72px;
+  height: 95px;
   width: auto;
   margin-bottom: var(--spacing-sm);
 }

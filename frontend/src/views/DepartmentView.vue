@@ -39,7 +39,7 @@
                 <div class="import-step"><span class="step-num">1</span> 选择导入类型</div>
                 <div class="import-type-tabs">
                   <button :class="['import-type-btn', { active: importType === 'department' }]" @click="importType = 'department'">
-                    <span class="type-icon">🏢</span>
+                    <img :src="deptImg" alt="dept" class="import-type-img" />
                     <span>导入部门</span>
                   </button>
                   <button :class="['import-type-btn', { active: importType === 'user' }]" @click="importType = 'user'">
@@ -177,7 +177,7 @@
             </div>
           </template>
           <div v-else class="dept-empty text-center">
-            <p style="font-size:56px;margin-bottom:16px">🏢</p>
+            <img :src="deptImg" alt="dept" style="width:100px;height:100px;object-fit:contain;margin:0 auto 16px;display:block" />
             <h3>选择左侧部门查看</h3>
           </div>
         </template>
@@ -202,6 +202,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { departmentsAPI } from '../api'
+import deptImg from '../assets/departments.png'
 import DeptNode from '../components/common/DeptNode.vue'
 
 const auth = useAuthStore()
@@ -382,6 +383,7 @@ async function loadDashboard() {
 .import-type-btn:hover { border-color: var(--color-primary-100); }
 .import-type-btn.active { border-color: var(--color-primary); background: var(--color-primary-light); }
 .type-icon { font-size: 28px; }
+.import-type-img { width: 40px; height: 40px; object-fit: contain; }
 .import-format { background: var(--color-bg); padding: var(--spacing-md); border-radius: var(--radius-md); margin-bottom: var(--spacing-md); }
 .import-format code { background: var(--color-primary-50); color: var(--color-primary-700); padding: 1px 6px; border-radius: 4px; font-size: 12px; }
 .import-dropzone { border: 2px dashed var(--color-border); border-radius: var(--radius-md); padding: var(--spacing-xl); text-align: center; transition: all var(--transition-fast); cursor: pointer; }

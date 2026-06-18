@@ -5,10 +5,11 @@
       :class="{ active: activeId === dept.id }"
       :style="{ paddingLeft: (level * 18 + 10) + 'px' }"
       @click.stop="$emit('select', dept)"
+      @dblclick.stop="dept.children?.length && (expanded = !expanded)"
     >
-      <span class="dept-expand" @click.stop="expanded = !expanded" v-if="dept.children?.length">▸</span>
+      <span class="dept-expand" :class="{ expanded }" @click.stop="expanded = !expanded" v-if="dept.children?.length">{{ expanded ? '▾' : '▸' }}</span>
       <span v-else class="dept-expand-placeholder"></span>
-      <span class="dept-icon">{{ expanded ? '📂' : '📁' }}</span>
+      <img :src="expanded ? folderOpenImg : folderCloseImg" alt="folder" class="dept-icon" />
       <span class="dept-name" v-html="highlightName(dept.name)"></span>
       <span class="dept-count" v-if="dept.member_count > 0">{{ dept.member_count }}</span>
       <button v-if="$parent?.auth?.isCreator" class="dept-delete" @click.stop="$emit('delete', dept.id)">×</button>
@@ -29,6 +30,8 @@
 
 <script setup>
 import { ref } from 'vue'
+import folderCloseImg from '../../assets/folder_close.png'
+import folderOpenImg from '../../assets/folder_open.png'
 
 const props = defineProps({
   dept: Object,
@@ -68,15 +71,18 @@ function highlightName(name) {
   border-left-color: var(--color-primary);
 }
 .dept-expand {
-  width: 16px; height: 16px; flex-shrink: 0;
+  width: 20px; height: 20px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
-  font-size: 11px; color: var(--color-text-tertiary);
+  font-size: 14px; color: var(--color-text-tertiary);
   border-radius: 4px; transition: all 0.15s ease;
+}
+.dept-expand.expanded {
+  color: var(--color-text-primary);
 }
 .dept-expand:hover { background: var(--color-border-light); color: var(--color-text-primary); }
 .dept-node-row:hover .dept-expand { transform: none; }
-.dept-expand-placeholder { width: 16px; flex-shrink: 0; }
-.dept-icon { font-size: 15px; flex-shrink: 0; line-height: 1; }
+.dept-expand-placeholder { width: 20px; flex-shrink: 0; }
+.dept-icon { width: 18px; height: 18px; flex-shrink: 0; object-fit: contain; }
 .dept-name {
   flex: 1; font-size: 13px; font-weight: 500;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;

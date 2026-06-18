@@ -16,7 +16,10 @@
       <section class="features container">
         <div class="feature-grid">
           <div class="card feature-card" v-for="f in features" :key="f.title">
-            <div class="feature-icon">{{ f.icon }}</div>
+            <div class="feature-icon">
+              <img v-if="f.img" :src="f.img" :alt="f.title" class="feature-img" />
+              <span v-else>{{ f.icon }}</span>
+            </div>
             <h4>{{ f.title }}</h4>
             <p>{{ f.desc }}</p>
           </div>
@@ -48,16 +51,22 @@
 
 <script setup>
 import { useAuthStore } from '../stores/auth'
+import chartsImg from '../assets/charts.png'
+import analysisImg from '../assets/analysis.png'
+import customImg from '../assets/custom.png'
+import mobileImg from '../assets/mobile.png'
+import exportImg from '../assets/export.png'
+import safeImg from '../assets/safe.png'
 
 const auth = useAuthStore()
 
 const features = [
-  { icon: '📝', title: '多种题型', desc: '单选、多选、填空...满足一切调研场景' },
-  { icon: '📊', title: '实时分析', desc: '柱状图、饼图、交叉分析，数据一目了然' },
-  { icon: '🎨', title: '自由样式', desc: '主题色、背景、Logo，打造专属问卷' },
-  { icon: '📱', title: '移动端适配', desc: '手机端自适用，随时随地填写' },
-  { icon: '📤', title: '一键导出', desc: 'Excel格式导出，轻松查看数据' },
-  { icon: '🔒', title: '数据安全', desc: '私有化部署，数据完全掌握在自己手中' },
+  { img: chartsImg, title: '多种题型', desc: '单选、多选、填空...满足一切调研场景' },
+  { img: analysisImg, title: '实时分析', desc: '柱状图、饼图、交叉分析，数据一目了然' },
+  { img: customImg, title: '自由样式', desc: '评分、跳转、分段、分页，打造专属问卷' },
+  { img: mobileImg, title: '移动端适配', desc: '手机端自适用，随时随地填写' },
+  { img: exportImg, title: '一键导出', desc: 'Excel格式导出，轻松查看数据' },
+  { img: safeImg, title: '数据安全', desc: '私有化部署，数据完全掌握在自己手中' },
 ]
 </script>
 
@@ -115,6 +124,11 @@ const features = [
 .feature-icon {
   font-size: 28px;
   margin-bottom: var(--spacing-sm);
+}
+.feature-img {
+  width: 65px;
+  height: 65px;
+  object-fit: contain;
 }
 .feature-card h4 {
   margin-bottom: var(--spacing-xs);

@@ -4,7 +4,7 @@
       <div class="stats-summary">
         <div class="stat-card stat-clickable" style="border-color: var(--color-primary); --hover-bg: var(--color-primary-light)" @click="showDetail('expected')">
           <span class="stat-num">{{ stats?.expected_submissions || 0 }}</span>
-          <span class="stat-label">应提交人数</span>
+          <span class="stat-label" style="color: var(--color-primary)">应提交人数</span>
         </div>
         <div class="stat-card stat-clickable" style="border-color: var(--color-success); --hover-bg: var(--color-success-light)" @click="showDetail('submitted')">
           <span class="stat-num" style="color: var(--color-success)">{{ stats?.total_submissions || 0 }}</span>
@@ -15,6 +15,8 @@
           <span class="stat-label" style="color: var(--color-danger)">未提交人数</span>
         </div>
       </div>
+    </div>
+    <div class="stats-actions">
       <button class="btn btn-secondary btn-sm" @click="exportExcel">导出 Excel</button>
     </div>
 
@@ -245,32 +247,35 @@ async function exportExcel() {
   max-width: 1400px;
   margin: 0 auto;
 }
-.stats-summary { display: flex; gap: var(--spacing-md); }
+.stats-summary { display: flex; gap: var(--spacing-md); flex: 1; }
 .stats-header {
+  margin-bottom: var(--spacing-md);
+}
+.stats-actions {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   margin-bottom: var(--spacing-lg);
 }
 .stat-card {
-  text-align: center;
-  padding: var(--spacing-md) var(--spacing-xl);
+  flex: 1; text-align: center;
+  padding: var(--spacing-lg) var(--spacing-xl);
   background: var(--color-bg-white);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-border-light);
-  width: 180px;
+  border-radius: var(--radius-lg);
+  border: 2px solid var(--color-border-light);
 }
 .stat-num {
-  font-size: var(--font-size-2xl);
+  font-size: var(--font-size-3xl);
   font-weight: 700;
+  line-height: 1.1;
   color: var(--color-primary);
   display: block;
 }
 .stat-label {
-  font-size: var(--font-size-xs);
-  font-weight: 600;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  margin-top: 4px;
 }
-.stat-clickable { cursor: pointer; transition: all var(--transition-fast); border-width: 2px; }
+.stat-clickable { cursor: pointer; transition: all var(--transition-fast); }
 .stat-clickable:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); background: var(--hover-bg, var(--color-bg-white)); }
 
 .detail-panel {

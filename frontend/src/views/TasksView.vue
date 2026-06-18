@@ -24,7 +24,7 @@
         </div>
       </div>
       <div v-else class="sidebar-empty text-center" style="padding:var(--spacing-xl)">
-        <p style="font-size:36px;margin-bottom:8px">📋</p>
+        <img :src="taskImg" alt="task" style="width:56px;height:56px;object-fit:contain;margin-bottom:8px" />
         <p class="text-secondary text-sm">暂无问卷任务</p>
       </div>
     </aside>
@@ -152,7 +152,7 @@
       </template>
       <div v-else class="tasks-empty">
         <div class="empty-inner">
-          <div class="empty-icon">📋</div>
+          <div class="empty-icon"><img :src="taskImg" alt="task" class="empty-img" /></div>
           <h3>{{ tasks.length ? '选择左侧问卷开始答题' : '暂无待完成问卷' }}</h3>
           <p class="empty-sub" v-if="!tasks.length">管理员发布问卷后，将自动出现在这里</p>
         </div>
@@ -165,6 +165,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { surveysAPI, responsesAPI, departmentsAPI } from '../api'
+import taskImg from '../assets/task.png'
 
 const auth = useAuthStore()
 const tasks = ref([])
@@ -328,7 +329,12 @@ async function submitSurvey() {
   width: 88px; height: 88px; margin: 0 auto 20px;
   border-radius: 50%; background: var(--color-primary-50);
   display: flex; align-items: center; justify-content: center;
-  font-size: 40px; box-shadow: 0 4px 16px rgba(79, 70, 229, 0.1);
+  box-shadow: 0 4px 16px rgba(79, 70, 229, 0.1);
+}
+.empty-img {
+  width: 50px;
+  height: 50px;
+  object-fit: contain;
 }
 .empty-inner h3 { font-size: 18px; color: var(--color-text-primary); margin-bottom: 8px; }
 .empty-sub { font-size: 13px; color: var(--color-text-tertiary); }

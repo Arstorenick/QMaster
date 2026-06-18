@@ -36,6 +36,7 @@
       <div class="toolbar">
         <div class="toolbar-tabs">
           <button :class="['tab', { active: activeTab === 'edit' }]" @click="activeTab = 'edit'">编辑题目</button>
+          <button :class="['tab', { active: activeTab === 'deploy' }]" @click="switchToDeploy">目标部门</button>
           <button :class="['tab', { active: activeTab === 'style' }]" @click="activeTab = 'style'">样式设置</button>
           <button :class="['tab', { active: activeTab === 'stats' }]" @click="activeTab = 'stats'">数据统计</button>
         </div>
@@ -44,7 +45,7 @@
           <button
             class="btn btn-sm"
             :class="currentSurvey.status === 1 ? 'btn-secondary' : 'btn-primary'"
-            @click="currentSurvey.status === 1 ? togglePublish() : openPublishDialog()"
+            @click="currentSurvey.status === 1 ? togglePublish() : confirmPublish()"
           >
             {{ currentSurvey.status === 1 ? '停止收集' : '发布问卷' }}
           </button>
@@ -75,6 +76,39 @@
         @toggleScoring="toggleScoring"
       />
 
+      <!-- Deploy Tab -->
+      <section class="deploy-panel" v-if="activeTab === 'deploy'">
+        <div class="deploy-top-row">
+          <div class="deploy-stat-card">
+            <div class="deploy-stat-num">{{ allDeptCount }}</div>
+            <div class="deploy-stat-label">部门总数</div>
+          </div>
+          <div class="deploy-stat-card">
+            <div class="deploy-stat-num">{{ targetCheckedDepts.length }}</div>
+            <div class="deploy-stat-label">已选部门</div>
+          </div>
+        </div>
+        <div class="deploy-card card">
+          <div class="deploy-card-header">
+            <h4>📂 选择推送范围</h4>
+            <div class="deploy-card-actions">
+              <button class="btn btn-secondary btn-sm" @click="autoPopulateDepts" v-if="targetDepts.length">自动填充本部门</button>
+              <button class="btn btn-ghost btn-sm" @click="targetCheckedDepts = []">清空</button>
+            </div>
+          </div>
+          <p class="text-secondary text-sm" style="margin-bottom:12px">勾选要推送问卷的部门，发布后该部门下的所有成员将收到问卷任务</p>
+          <div class="deploy-tree">
+            <div v-for="dept in targetDepts" :key="dept.id">
+              <PublishDeptNode :dept="dept" :level="0" :checked-ids="targetCheckedDepts" @toggle="toggleDeptCheck" />
+            </div>
+            <div v-if="!targetDepts.length" class="deploy-empty">
+              <img :src="taskImg" alt="empty" style="width:56px;height:56px;object-fit:contain;margin-bottom:12px;opacity:0.3" />
+              <p class="text-secondary">暂无部门数据，请先在「组织架构」中创建部门</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- Style Tab -->
       <StylePanel
         v-if="activeTab === 'style'"
@@ -91,9 +125,9 @@
 
     <!-- Empty state -->
     <section class="main-area main-empty" v-else>
-      <div class="text-center" style="margin-top: 120px">
-        <p style="font-size: 48px; margin-bottom: 16px">📋</p>
-        <h3>选择问卷或创建新的</h3>
+      <div class="text-center">
+        <img :src="taskImg" alt="task" style="width:100px;height:100px;object-fit:contain;margin:0 auto 16px;display:block" />
+        <h3>选择问卷或创建新问卷</h3>
         <p class="text-secondary mt-sm">从左侧列表选择问卷开始编辑</p>
       </div>
     </section>
@@ -144,32 +178,6 @@
       </div>
     </Teleport>
 
-    <!-- Publish Settings Dialog -->
-    <Teleport to="body">
-      <div class="modal-overlay" v-if="showPublishDialog" @click.self="showPublishDialog = false">
-        <div class="modal card" style="max-width:520px">
-          <h3>发布设置</h3>
-          <p class="text-secondary text-sm mt-sm">选择问卷推送的目标部门</p>
-
-          <!-- Department Tree -->
-          <div class="publish-section">
-            <h4>目标部门</h4>
-            <div class="publish-tree">
-              <div v-for="dept in publishDepts" :key="dept.id">
-                <PublishDeptNode :dept="dept" :level="0" :checked-ids="publishCheckedDepts" @toggle="toggleDeptCheck" />
-              </div>
-            </div>
-          </div>
-
-          <div class="modal-actions">
-            <button class="btn btn-ghost" @click="showPublishDialog = false">取消</button>
-            <button class="btn btn-secondary btn-sm" @click="autoPopulateDepts" v-if="publishDepts.length">自动填充本部门及下级</button>
-            <button class="btn btn-primary" @click="confirmPublish">确认发布</button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
-
     <!-- Share Dialog -->
     <Teleport to="body">
       <div class="modal-overlay" v-if="showShareDialog" @click.self="showShareDialog = false">
@@ -193,12 +201,15 @@
 
 <script setup>
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
+import { useAuthStore } from '../stores/auth'
 import { surveysAPI, questionsAPI, departmentsAPI } from '../api'
 import SurveyEditor from '../components/survey/SurveyEditor.vue'
+import taskImg from '../assets/task.png'
 import PublishDeptNode from '../components/survey/PublishDeptNode.vue'
 import StylePanel from '../components/survey/StylePanel.vue'
 import StatisticsPanel from '../components/statistics/StatisticsPanel.vue'
 
+const auth = useAuthStore()
 const surveys = ref([])
 const currentSurvey = ref(null)
 const questions = ref([])
@@ -213,9 +224,8 @@ const editingSurveyId = ref(null)
 const editTitle = ref('')
 const editDesc = ref('')
 
-const showPublishDialog = ref(false)
-const publishDepts = ref([])
-const publishCheckedDepts = ref([])
+const targetDepts = ref([])
+const targetCheckedDepts = ref([])
 const lastClickedDept = ref(null)
 
 const showShareDialog = ref(false)
@@ -225,6 +235,16 @@ const shareLink = computed(() => {
   if (!currentSurvey.value) return ''
   return `${window.location.origin}/display/${currentSurvey.value.id}`
 })
+
+function countAllDepts(list) {
+  let n = 0
+  for (const d of list) {
+    n++
+    if (d.children) n += countAllDepts(d.children)
+  }
+  return n
+}
+const allDeptCount = computed(() => countAllDepts(targetDepts.value))
 
 onMounted(loadSurveys)
 
@@ -268,28 +288,26 @@ async function togglePublish() {
   await loadSurveys()
 }
 
-async function openPublishDialog() {
-  showPublishDialog.value = true
-  publishCheckedDepts.value = []
+async function switchToDeploy() {
+  activeTab.value = 'deploy'
   const { data } = await departmentsAPI.tree()
-  publishDepts.value = data
-  if (auth.user?.department) {
+  targetDepts.value = data
+  if (auth.user?.department && !targetCheckedDepts.value.length) {
     autoPopulateDepts()
   }
 }
 
 function toggleDeptCheck(deptId) {
   lastClickedDept.value = deptId
-  const arr = [...publishCheckedDepts.value]
+  const arr = [...targetCheckedDepts.value]
   const idx = arr.indexOf(deptId)
   if (idx > -1) arr.splice(idx, 1)
   else arr.push(deptId)
-  publishCheckedDepts.value = arr
+  targetCheckedDepts.value = arr
 }
 
 function autoPopulateDepts() {
   if (!lastClickedDept.value) {
-    // 未点击任何部门时，填充本部门及下级
     if (!auth.user?.department) return
     lastClickedDept.value = auth.user.department
   }
@@ -310,8 +328,8 @@ function autoPopulateDepts() {
     }
     return false
   }
-  findAndCollect(publishDepts.value)
-  publishCheckedDepts.value = ids
+  findAndCollect(targetDepts.value)
+  targetCheckedDepts.value = ids
 }
 
 function formatPublishDate(d) {
@@ -338,10 +356,9 @@ async function copySurvey() {
 
 async function confirmPublish() {
   const s = currentSurvey.value
-  const deptIds = [...publishCheckedDepts.value]
+  const deptIds = [...targetCheckedDepts.value]
   await surveysAPI.publish(s.id, 1, deptIds)
   s.status = 1
-  showPublishDialog.value = false
   await loadSurveys()
 }
 
@@ -559,9 +576,25 @@ watch(showShareDialog, async (val) => {
   display: flex;
   justify-content: center;
 }
-.publish-section { margin: var(--spacing-md) 0; }
 .scoring-toggle { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--color-text-secondary); cursor: pointer; user-select: none; }
 .scoring-toggle input { accent-color: var(--color-warning); }
 .lock-banner { padding: var(--spacing-md) var(--spacing-xl); background: var(--color-warning-light); border-bottom: 1px solid #FDE68A; text-align: center; font-size: 13px; color: #92400E; }
+.deploy-panel { padding: var(--spacing-lg); }
+.deploy-top-row { display: flex; gap: var(--spacing-md); margin-bottom: var(--spacing-lg); }
+.deploy-stat-card {
+  flex: 1; text-align: center;
+  padding: var(--spacing-lg);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, var(--color-primary-50) 0%, var(--color-primary-light) 100%);
+  border: 1px solid var(--color-primary-100);
+}
+.deploy-stat-num { font-size: 32px; font-weight: 700; color: var(--color-primary); line-height: 1.1; }
+.deploy-stat-label { font-size: 13px; color: var(--color-primary-600); margin-top: 4px; }
+.deploy-card { padding: var(--spacing-lg); }
+.deploy-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.deploy-card-header h4 { font-size: var(--font-size-md); font-weight: 600; }
+.deploy-card-actions { display: flex; gap: var(--spacing-sm); }
+.deploy-tree { max-height: 420px; overflow-y: auto; border: 1px solid var(--color-border-light); border-radius: var(--radius-md); padding: var(--spacing-sm); background: var(--color-bg); }
+.deploy-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: var(--spacing-2xl); }
 .publish-tree { max-height: 300px; overflow-y: auto; border: 1px solid var(--color-border-light); border-radius: var(--radius-md); padding: var(--spacing-sm); }
 </style>
