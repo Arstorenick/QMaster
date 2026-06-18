@@ -41,9 +41,9 @@
           <button :class="['tab', { active: activeTab === 'stats' }]" @click="activeTab = 'stats'">数据统计</button>
         </div>
         <div class="toolbar-actions">
-          <button class="btn btn-ghost btn-sm" @click="previewSurvey">预览</button>
+          <button class="btn btn-ghost" @click="previewSurvey">预览</button>
           <button
-            class="btn btn-sm"
+            class="btn"
             :class="currentSurvey.status === 1 ? 'btn-secondary' : 'btn-primary'"
             @click="currentSurvey.status === 1 ? togglePublish() : confirmPublish()"
           >
@@ -51,11 +51,11 @@
           </button>
           <button
             v-if="currentSurvey.status === 1"
-            class="btn btn-secondary btn-sm"
+            class="btn btn-secondary"
             @click="copySurvey"
           >复制为新问卷</button>
-          <button class="btn btn-secondary btn-sm" @click="showShareDialog = true">分享</button>
-          <button v-if="currentSurvey.status === 0" class="btn btn-ghost btn-sm" @click="deleteCurrentSurvey" style="color: var(--color-danger)">删除</button>
+          <button class="btn btn-secondary" @click="showShareDialog = true">分享</button>
+          <button v-if="currentSurvey.status === 0" class="btn btn-ghost" @click="showDeleteDialog = true" style="color: var(--color-danger)">删除</button>
         </div>
       </div>
 
@@ -178,6 +178,27 @@
       </div>
     </Teleport>
 
+    <!-- Delete Confirm Dialog -->
+    <Teleport to="body">
+      <div class="modal-overlay" v-if="showDeleteDialog" @click.self="showDeleteDialog = false">
+        <div class="delete-modal">
+          <div class="delete-modal-icon">
+            <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+              <circle cx="24" cy="24" r="24" fill="#FEE2E2"/>
+              <path d="M24 14v14m0 6h.01" stroke="#DC2626" stroke-width="3" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <h3>确认删除问卷</h3>
+          <p class="delete-modal-title">"{{ currentSurvey?.title }}"</p>
+          <p class="delete-modal-hint">此操作不可撤销，问卷及所有数据将被永久删除</p>
+          <div class="delete-modal-actions">
+            <button class="btn btn-secondary" @click="showDeleteDialog = false">取消</button>
+            <button class="btn btn-danger" @click="confirmDeleteSurvey">确认</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
     <!-- Share Dialog -->
     <Teleport to="body">
       <div class="modal-overlay" v-if="showShareDialog" @click.self="showShareDialog = false">
@@ -227,6 +248,8 @@ const editDesc = ref('')
 const targetDepts = ref([])
 const targetCheckedDepts = ref([])
 const lastClickedDept = ref(null)
+
+const showDeleteDialog = ref(false)
 
 const showShareDialog = ref(false)
 const qrCanvas = ref(null)
@@ -362,9 +385,13 @@ async function confirmPublish() {
   await loadSurveys()
 }
 
-async function deleteCurrentSurvey() {
-  if (!confirm('确定删除此问卷？')) return
+function openDeleteDialog() {
+  showDeleteDialog.value = true
+}
+
+async function confirmDeleteSurvey() {
   await surveysAPI.delete(currentSurvey.value.id)
+  showDeleteDialog.value = false
   currentSurvey.value = null
   questions.value = []
   await loadSurveys()
@@ -597,4 +624,37 @@ watch(showShareDialog, async (val) => {
 .deploy-tree { max-height: 420px; overflow-y: auto; border: 1px solid var(--color-border-light); border-radius: var(--radius-md); padding: var(--spacing-sm); background: var(--color-bg); }
 .deploy-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: var(--spacing-2xl); }
 .publish-tree { max-height: 300px; overflow-y: auto; border: 1px solid var(--color-border-light); border-radius: var(--radius-md); padding: var(--spacing-sm); }
+.delete-modal {
+  width: 90%; max-width: 380px;
+  padding: var(--spacing-2xl);
+  background: var(--color-bg-white);
+  border-radius: var(--radius-xl);
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+  animation: modalIn 0.2s ease;
+}
+.delete-modal-icon { margin-bottom: var(--spacing-md); }
+.delete-modal h3 { font-size: 18px; font-weight: 700; margin-bottom: var(--spacing-sm); }
+.delete-modal-title {
+  font-weight: 600; color: var(--color-text-primary);
+  margin-bottom: var(--spacing-sm);
+  padding: 6px 12px;
+  background: var(--color-bg);
+  border-radius: var(--radius-md);
+  display: inline-block;
+}
+.delete-modal-hint { font-size: 13px; color: var(--color-text-tertiary); }
+.delete-modal-actions {
+  display: flex; gap: var(--spacing-sm);
+  justify-content: center; margin-top: var(--spacing-xl);
+}
+.btn-danger {
+  background: #DC2626; border-color: #DC2626;
+  color: #fff; padding: 8px 24px;
+  border-radius: var(--radius-md);
+  font-size: 14px; font-weight: 500; font-family: var(--font-family);
+  cursor: pointer; transition: all 0.15s ease;
+}
+.btn-danger:hover { background: #B91C1C; border-color: #B91C1C; }
+@keyframes modalIn { from { opacity: 0; transform: scale(0.95) translateY(-8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 </style>

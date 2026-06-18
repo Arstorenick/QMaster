@@ -82,16 +82,10 @@
               @blur="updateQuestion(q)"
             />
             <div class="q-header-actions">
-              <input
-                v-if="scoringEnabled && !readonly"
-                v-model.number="q.score"
-                class="score-input"
-                type="number"
-                min="0"
-                placeholder="分值"
-                @blur="updateQuestion(q)"
-                title="题目分值"
-              />
+              <div v-if="scoringEnabled && !readonly" class="score-badge" title="题目分值">
+                <input v-model.number="q.score" class="score-input" type="number" min="0" placeholder="0" @blur="updateQuestion(q)" />
+                <span class="score-unit">分</span>
+              </div>
               <label class="required-toggle" v-if="!readonly">
                 <input type="checkbox" v-model="q.is_required" @change="updateQuestion(q)" />
                 <span>必填</span>
@@ -112,28 +106,31 @@
                 :disabled="readonly"
                 @blur="updateOption(q, opt)"
               />
-              <input
-                v-if="scoringEnabled && !readonly"
-                v-model.number="opt.score"
-                class="score-input score-input-sm"
-                type="number"
-                min="0"
-                placeholder="分"
-                @blur="updateOption(q, opt)"
-                title="选项分值"
-              />
+              <div v-if="scoringEnabled && !readonly" class="score-badge score-badge-sm" title="选项分值">
+                <input v-model.number="opt.score" class="score-input score-input-sm" type="number" min="0" placeholder="0" @blur="updateOption(q, opt)" />
+                <span class="score-unit">分</span>
+              </div>
               <button v-if="!readonly" class="btn btn-ghost btn-sm" @click="deleteOption(q, opt.id)" style="color:var(--color-danger)">×</button>
             </div>
             <button v-if="!readonly" class="btn btn-ghost btn-sm add-option-btn" @click="addOption(q)">+ 添加选项</button>
+
+            <!-- Ranking preview -->
+            <div v-if="q.type === 'ranking' && q.options?.length" class="ranking-editor-preview">
+              <div class="ranking-preview-item" v-for="(opt, ri) in q.options.slice(0, 5)" :key="opt.id">
+                <span class="ranking-preview-num">{{ ri + 1 }}</span>
+                <span class="ranking-preview-text">{{ opt.title || `选项 ${ri + 1}` }}</span>
+                <span class="ranking-preview-arrows">↕</span>
+              </div>
+            </div>
           </div>
 
-          <!-- Text area preview -->
-          <div v-else-if="q.type === 'text' || q.type === 'textarea'">
+          <!-- Text preview -->
+          <div v-else-if="q.type === 'text'">
             <textarea
               class="input"
-              :rows="q.config?.rows || (q.type === 'textarea' ? 3 : 1)"
+              :rows="q.config?.rows || 3"
               disabled
-              :placeholder="`${q.type === 'textarea' ? '多行' : ''}文本回答区域`"
+              placeholder="文本回答区域"
               style="opacity:0.5"
             ></textarea>
           </div>
@@ -154,6 +151,19 @@
               <span>{{ q.config?.left_label || '1' }}</span>
               <span v-for="i in (q.config?.scale || 5)" :key="i" class="scale-dot">{{ i }}</span>
               <span>{{ q.config?.right_label || '5' }}</span>
+            </div>
+          </div>
+
+          <!-- Date preview -->
+          <div v-else-if="q.type === 'date'" class="date-preview">
+            <div class="date-mode-bar">
+              <button :class="['date-mode-btn', { active: (q.config?.mode || 'datetime') === 'datetime' }]" @click="q.config.mode = 'datetime'; updateQuestion(q)">日期+时间</button>
+              <button :class="['date-mode-btn', { active: q.config?.mode === 'date' }]" @click="q.config.mode = 'date'; updateQuestion(q)">仅日期</button>
+              <button :class="['date-mode-btn', { active: q.config?.mode === 'time' }]" @click="q.config.mode = 'time'; updateQuestion(q)">仅时间</button>
+            </div>
+            <div class="date-preview-row">
+              <input v-if="(q.config?.mode || 'datetime') !== 'time'" type="date" class="input" disabled style="flex:1" />
+              <input v-if="(q.config?.mode || 'datetime') !== 'date'" type="time" class="input" disabled style="flex:1" />
             </div>
           </div>
 
@@ -183,6 +193,9 @@ import singleImg from '../../assets/question_single.png'
 import multipleImg from '../../assets/question_multiple.png'
 import fillImg from '../../assets/question_fill.png'
 import ratingImg from '../../assets/question_rating.png'
+import dropdownImg from '../../assets/question_dropdown.png'
+import sortImg from '../../assets/question_sort.png'
+import scaleImg from '../../assets/question_scale.png'
 
 const props = defineProps({
   survey: Object,
@@ -206,26 +219,23 @@ const typeGroups = [
     types: [
       { value: 'radio', label: '单选', img: singleImg },
       { value: 'checkbox', label: '多选', img: multipleImg },
-      { value: 'text', label: '填空', img: fillImg },
-      { value: 'textarea', label: '多行文本', icon: '📝' },
-      { value: 'dropdown', label: '下拉', icon: '📋' },
+      { value: 'text', label: '主观', img: fillImg },
+      { value: 'dropdown', label: '下拉', img: dropdownImg },
     ],
   },
   {
     label: '高级',
     types: [
       { value: 'rating', label: '评分', img: ratingImg },
-      { value: 'ranking', label: '排序', icon: '🔢' },
-      { value: 'scale', label: '量表', icon: '📏' },
+      { value: 'ranking', label: '排序', img: sortImg },
+      { value: 'scale', label: '量表', img: scaleImg },
       { value: 'slider', label: '滑块', icon: '🎚️' },
-      { value: 'multi_text', label: '多项填空', icon: '📋' },
     ],
   },
   {
     label: '其他',
     types: [
-      { value: 'date', label: '日期', icon: '📅' },
-      { value: 'time', label: '时间', icon: '🕐' },
+      { value: 'date', label: '日期/时间', icon: '📅' },
       { value: 'file_upload', label: '上传', icon: '📎' },
       { value: 'image_radio', label: '图片单选', icon: '🖼️' },
       { value: 'image_checkbox', label: '图片多选', icon: '🖼️' },
@@ -281,10 +291,8 @@ function getDefaultConfig(type) {
     rating: { max_score: 5 },
     scale: { scale: 5, left_label: '非常不同意', right_label: '非常同意' },
     slider: { min: 0, max: 100, step: 1 },
-    textarea: { rows: 3 },
-    multi_text: { fields: [{ label: '', placeholder: '' }] },
-    date: { format: 'yyyy-mm-dd' },
-    time: { format: 'hh:mm' },
+    text: { rows: 3 },
+    date: { mode: 'datetime' },
   }
   return defaults[type] || {}
 }
@@ -341,6 +349,7 @@ async function deleteOption(q, optId) {
   margin: 0 auto;
 }
 .mode-bar {
+  display: flex; align-items: center; flex-wrap: wrap; gap: var(--spacing-sm);
   margin-bottom: var(--spacing-md);
 }
 .mode-tabs {
@@ -376,9 +385,13 @@ async function deleteOption(q, optId) {
 }
 .mode-icon-img { width: 22px; height: 22px; object-fit: contain; flex-shrink: 0; }
 .mode-hint {
-  display: inline-block;
-  margin-left: var(--spacing-md);
-  font-size: 12px;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 12px;
+  background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);
+  border: 1px solid #FCD34D;
+  border-radius: var(--radius-md);
+  font-size: 12px; font-weight: 500;
+  color: #92400E;
   color: var(--color-warning);
   vertical-align: middle;
 }
@@ -555,23 +568,33 @@ async function deleteOption(q, optId) {
   cursor: default;
   opacity: 1;
 }
+.score-badge {
+  display: inline-flex; align-items: center;
+  border: 1px solid #FCD34D;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);
+  overflow: hidden;
+  transition: all 0.15s ease;
+}
+.score-badge:focus-within {
+  border-color: #F59E0B;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+}
+.score-badge-sm { border-radius: var(--radius-sm); }
 .score-input {
-  width: 50px;
-  padding: 2px 6px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  font-size: 12px;
-  text-align: center;
-  font-family: var(--font-family);
-  outline: none;
-  color: var(--color-warning);
+  width: 44px; padding: 4px 2px 4px 8px;
+  border: none; border-radius: 0;
+  font-size: 14px; font-weight: 700; text-align: center;
+  font-family: var(--font-family); outline: none;
+  color: #B45309; background: transparent;
 }
-.score-input:focus {
-  border-color: var(--color-warning);
+.score-input:focus { outline: none; }
+.score-input-sm { width: 44px; font-size: 13px; padding: 2px 2px 2px 6px; }
+.score-unit {
+  font-size: 11px; font-weight: 600; color: #B45309;
+  padding-right: 8px; flex-shrink: 0;
 }
-.score-input-sm {
-  width: 40px;
-}
+.score-badge-sm .score-unit { font-size: 10px; padding-right: 6px; }
 .q-header-actions {
   display: flex;
   align-items: center;
@@ -607,6 +630,52 @@ async function deleteOption(q, optId) {
   margin-left: 38px;
   margin-top: var(--spacing-xs);
 }
+.ranking-editor-preview {
+  margin-top: var(--spacing-md);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.ranking-preview-item {
+  display: flex; align-items: center; gap: var(--spacing-sm);
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--color-border-light);
+  background: var(--color-bg);
+}
+.ranking-preview-item:last-child { border-bottom: none; }
+.ranking-preview-num {
+  width: 26px; height: 26px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--color-primary); color: #fff;
+  border-radius: 50%;
+  font-size: 12px; font-weight: 700;
+  flex-shrink: 0;
+}
+.ranking-preview-text {
+  flex: 1; font-size: 13px; color: var(--color-text-primary);
+}
+.ranking-preview-arrows {
+  color: var(--color-text-tertiary); font-size: 16px;
+}
+.date-preview { margin-top: var(--spacing-md); }
+.date-mode-bar { display: flex; gap: 4px; margin-bottom: var(--spacing-sm); }
+.date-mode-btn {
+  padding: 4px 12px;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-white);
+  font-size: 12px; font-family: var(--font-family);
+  cursor: pointer; transition: all 0.15s ease;
+  color: var(--color-text-secondary);
+}
+.date-mode-btn:hover { border-color: var(--color-primary-100); color: var(--color-primary); }
+.date-mode-btn.active {
+  background: var(--color-primary-light);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  font-weight: 500;
+}
+.date-preview-row { display: flex; gap: var(--spacing-sm); }
 .rating-preview {
   padding-left: 40px;
   font-size: 24px;

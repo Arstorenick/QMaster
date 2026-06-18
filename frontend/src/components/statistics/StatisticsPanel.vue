@@ -210,7 +210,7 @@ function renderChart(qId, type) {
       series: [{
         type: 'bar',
         data: values,
-        itemStyle: { color: '#4F46E5', borderRadius: [4, 4, 0, 0] },
+        itemStyle: { color: '#2563EB', borderRadius: [4, 4, 0, 0] },
       }],
       grid: { top: 20, right: 20, bottom: 40, left: type === 'horizontal' ? 100 : 40 },
     }

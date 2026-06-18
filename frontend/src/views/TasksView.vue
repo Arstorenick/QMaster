@@ -52,6 +52,7 @@
               <span class="dq-num">{{ getQNumber(q.id) }}.</span>
               <span>{{ q.title }}</span>
               <span v-if="q.is_required" style="color:var(--color-danger)">*</span>
+              <span v-if="activeSurvey.style?.show_question_score" class="tag" style="background:var(--color-warning-light);color:#92400E;border-color:#FCD34D">{{ q.score || 0 }} 分</span>
             </div>
             <!-- Radio -->
             <div v-if="q.type === 'radio'" class="dq-options">
@@ -68,7 +69,7 @@
               </label>
             </div>
             <!-- Text / Textarea -->
-            <textarea v-if="q.type === 'text' || q.type === 'textarea'" class="input" :rows="q.type === 'textarea' ? 3 : 1" v-model="answers[q.id]" placeholder="请输入"></textarea>
+            <textarea v-if="q.type === 'text' || q.type === 'textarea'" class="input" :rows="q.config?.rows || 3" v-model="answers[q.id]" placeholder="请输入"></textarea>
             <!-- Rating -->
             <div v-if="q.type === 'rating'" class="dq-rating">
               <span v-for="i in (q.config?.max_score || 5)" :key="i" class="rating-star" :class="{ active: answers[q.id] >= i }" @click="answers[q.id] = i">★</span>
@@ -85,26 +86,39 @@
               <span class="text-sm">{{ q.config?.right_label }}</span>
             </div>
             <!-- Date / Time -->
-            <input v-if="q.type === 'date'" class="input" type="date" v-model="answers[q.id]" style="max-width:240px" />
-            <input v-if="q.type === 'time'" class="input" type="time" v-model="answers[q.id]" style="max-width:240px" />
+            <div v-if="q.type === 'date' || q.type === 'time'" class="dq-datetime">
+              <div v-if="(q.config?.mode || 'datetime') !== 'time'" class="dt-field">
+                <span class="dt-field-icon">📅</span>
+                <input type="date" class="dt-input" v-model="answers[q.id + '_date']" />
+              </div>
+              <div v-if="(q.config?.mode || 'datetime') !== 'date'" class="dt-field">
+                <span class="dt-field-icon">🕐</span>
+                <input type="time" class="dt-input" v-model="answers[q.id + '_time']" />
+              </div>
+            </div>
             <!-- Slider -->
             <div v-if="q.type === 'slider'" class="dq-slider">
               <input type="range" :min="q.config?.min || 0" :max="q.config?.max || 100" v-model="answers[q.id]" style="flex:1" />
               <span>{{ answers[q.id] || 0 }}{{ q.config?.unit || '' }}</span>
             </div>
             <!-- Ranking -->
-            <div v-if="q.type === 'ranking'" class="dq-options">
-              <div v-for="opt in q.options" :key="opt.id" class="dq-opt">
-                <span>{{ opt.title }}</span>
-                <input type="number" :min="1" :max="q.options.length" v-model="answers[q.id+'_'+opt.id]" style="width:60px;margin-left:auto" class="input" />
-              </div>
-            </div>
-            <!-- Multi Text -->
-            <div v-if="q.type === 'multi_text'">
-              <div v-for="(field, fi) in (q.config?.fields || [])" :key="fi" style="margin-bottom:8px">
-                <label style="font-size:13px;display:block;margin-bottom:2px">{{ field.label }}</label>
-                <input class="input" :placeholder="field.placeholder" v-model="answers[q.id+'_field_'+fi]" />
-              </div>
+            <div v-if="q.type === 'ranking'" class="dq-ranking">
+              <div class="dq-ranking-hint">上下拖拽选项进行排序（越靠上优先级越高）</div>
+              <draggable
+                v-model="rankingOrders[q.id]"
+                item-key="id"
+                handle=".ranking-drag-handle"
+                ghost-class="ranking-ghost"
+                :animation="200"
+              >
+                <template #item="{ element: opt, index }">
+                  <div class="dq-ranking-item">
+                    <span class="ranking-drag-handle">⠿</span>
+                    <span class="ranking-pos">{{ index + 1 }}</span>
+                    <span class="dq-ranking-label">{{ opt.title }}</span>
+                  </div>
+                </template>
+              </draggable>
             </div>
             <!-- File Upload -->
             <div v-if="q.type === 'file_upload'" style="margin-top:4px">
@@ -166,6 +180,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { surveysAPI, responsesAPI, departmentsAPI } from '../api'
 import taskImg from '../assets/task.png'
+import draggable from 'vuedraggable'
 
 const auth = useAuthStore()
 const tasks = ref([])
@@ -176,6 +191,8 @@ const submitted = ref(false)
 const submitting = ref(false)
 const currentPage = ref(0)
 const taskFiles = reactive({})
+const rankingOrders = reactive({})
+
 
 const pages = computed(() => {
   if (!activeSurvey.value?.questions) return []
@@ -198,8 +215,8 @@ const currentPageQuestions = computed(() => pages.value[currentPage.value] || []
 const taskCardStyle = computed(() => {
   const s = activeSurvey.value?.style || {}
   return {
-    '--survey-theme': s.theme_color || '#4F46E5',
-    '--survey-progress': s.progress_color || s.theme_color || '#4F46E5',
+    '--survey-theme': s.theme_color || '#2563EB',
+    '--survey-progress': s.progress_color || s.theme_color || '#2563EB',
   }
 })
 
@@ -237,8 +254,10 @@ async function openSurvey(survey) {
   activeQuestions.value = data.questions || []
   currentPage.value = 0
   for (const key in answers) delete answers[key]
+  for (const key in rankingOrders) delete rankingOrders[key]
   for (const q of activeQuestions.value) {
     if (q.type === 'checkbox' || q.type === 'image_checkbox') answers[q.id] = []
+    if (q.type === 'ranking' && q.options?.length) rankingOrders[q.id] = [...q.options]
   }
 }
 
@@ -275,17 +294,17 @@ async function submitSurvey() {
     }
     if (['radio','dropdown','image_radio'].includes(q.type)) payload.option = val ? Number(val) : null
     else if (['rating','scale','slider'].includes(q.type)) payload.answer_number = Number(val) || 0
-    else if (['date','time'].includes(q.type)) payload.answer_text = val || ''
+    else if (q.type === 'date') {
+      payload.answer_json = {}
+      if ((q.config?.mode || 'datetime') !== 'time') payload.answer_json.date = answers[q.id + '_date'] || ''
+      if ((q.config?.mode || 'datetime') !== 'date') payload.answer_json.time = answers[q.id + '_time'] || ''
+    } else if (q.type === 'time') payload.answer_text = answers[q.id] || ''
     else if (q.type === 'ranking') {
       payload.answer_json = {}
-      for (const opt of q.options) {
-        payload.answer_json[opt.id] = Number(answers[q.id + '_' + opt.id]) || 0
-      }
-    } else if (q.type === 'multi_text') {
-      payload.answer_json = {}
-      for (const fi in (q.config?.fields || [])) {
-        payload.answer_json['field_' + fi] = answers[q.id + '_field_' + fi] || ''
-      }
+      const order = rankingOrders[q.id] || q.options
+      order.forEach((opt, idx) => {
+        payload.answer_json[opt.id] = idx + 1
+      })
     } else if (q.type === 'file_upload') {
       if (val instanceof File) payload.answer_text = val.name
     } else payload.answer_text = val || ''
@@ -355,6 +374,67 @@ async function submitSurvey() {
 .dq-options { display: flex; flex-direction: column; gap: var(--spacing-sm); }
 .dq-opt { display: flex; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-sm) var(--spacing-md); border: 1px solid var(--color-border-light); border-radius: var(--radius-md); cursor: pointer; }
 .dq-opt:hover { border-color: var(--color-primary); background: var(--color-primary-light); }
+.dq-ranking { display: flex; flex-direction: column; gap: var(--spacing-xs); }
+.dq-ranking-hint { font-size: 12px; color: var(--color-text-tertiary); margin-bottom: 8px; }
+.dq-ranking-item {
+  display: flex; align-items: center; gap: var(--spacing-sm);
+  padding: 10px 14px;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-white);
+  transition: all 0.15s ease;
+  cursor: default;
+}
+.dq-ranking-item:hover { border-color: var(--color-primary-100); box-shadow: var(--shadow-sm); }
+.ranking-drag-handle {
+  font-size: 18px; color: var(--color-text-tertiary);
+  cursor: grab; flex-shrink: 0; line-height: 1;
+  padding: 2px;
+}
+.ranking-drag-handle:active { cursor: grabbing; }
+.ranking-pos {
+  width: 26px; height: 26px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--color-primary); color: #fff;
+  border-radius: 50%;
+  font-size: 12px; font-weight: 700;
+  flex-shrink: 0;
+}
+.ranking-ghost {
+  opacity: 0.4;
+  background: var(--color-primary-light);
+  border: 2px dashed var(--color-primary);
+}
+.dq-ranking-label { font-size: 14px; font-weight: 500; }
+.dq-datetime { display: flex; gap: var(--spacing-sm); }
+.dt-field {
+  flex: 0 1 260px; min-width: 0;
+  display: flex; align-items: center;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-white);
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+.dt-field:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-100);
+}
+.dt-field-icon { font-size: 18px; padding: 0 12px; flex-shrink: 0; opacity: 0.7; }
+.dt-field:focus-within .dt-field-icon { opacity: 1; }
+.dt-input {
+  flex: 1; min-width: 0;
+  padding: 10px 10px 10px 0;
+  border: none; outline: none;
+  font-size: 15px; font-family: var(--font-family);
+  color: var(--color-text-primary);
+  background: transparent;
+}
+.dt-input::-webkit-calendar-picker-indicator {
+  cursor: pointer; padding: 4px 8px;
+  opacity: 0.5; transition: opacity 0.15s;
+}
+.dt-input::-webkit-calendar-picker-indicator:hover { opacity: 1; }
 .dq-rating { display: flex; gap: 4px; }
 .rating-star { font-size: 32px; color: var(--color-border); cursor: pointer; }
 .rating-star.active, .rating-star:hover { color: var(--color-warning); }

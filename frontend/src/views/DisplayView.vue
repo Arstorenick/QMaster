@@ -33,6 +33,7 @@
               <span>{{ q.title }}</span>
               <span v-if="q.is_required" class="dq-required">*</span>
               <span v-if="style?.show_question_type" class="tag tag-primary text-sm">{{ typeLabels[q.type] }}</span>
+              <span v-if="style?.show_question_score" class="tag" style="background:var(--color-warning-light);color:#92400E;border-color:#FCD34D">{{ q.score || 0 }} 分</span>
             </div>
 
             <!-- Radio -->
@@ -51,11 +52,11 @@
               </label>
             </div>
 
-            <!-- Text / Textarea -->
+            <!-- Text -->
             <textarea
               v-if="q.type === 'text' || q.type === 'textarea'"
               class="input"
-              :rows="q.type === 'textarea' ? (q.config?.rows || 3) : 1"
+              :rows="q.config?.rows || 3"
               v-model="answers[q.id]"
               :placeholder="q.config?.placeholder || '请输入'"
             ></textarea>
@@ -93,8 +94,16 @@
             </div>
 
             <!-- Date / Time -->
-            <input v-if="q.type === 'date'" class="input" type="date" v-model="answers[q.id]" style="max-width:240px" />
-            <input v-if="q.type === 'time'" class="input" type="time" v-model="answers[q.id]" style="max-width:240px" />
+            <div v-if="q.type === 'date' || q.type === 'time'" class="dq-datetime">
+              <div v-if="(q.config?.mode || 'datetime') !== 'time'" class="dt-field">
+                <span class="dt-field-icon">📅</span>
+                <input type="date" class="dt-input" v-model="answers[q.id + '_date']" />
+              </div>
+              <div v-if="(q.config?.mode || 'datetime') !== 'date'" class="dt-field">
+                <span class="dt-field-icon">🕐</span>
+                <input type="time" class="dt-input" v-model="answers[q.id + '_time']" />
+              </div>
+            </div>
 
             <!-- File Upload (basic) -->
             <div v-if="q.type === 'file_upload'">
@@ -103,19 +112,23 @@
             </div>
 
             <!-- Ranking -->
-            <div v-if="q.type === 'ranking'" class="dq-options">
-              <div v-for="opt in q.options" :key="opt.id" class="dq-option">
-                <input type="number" :min="1" :max="q.options.length" v-model="answers[q.id + '_' + opt.id]" style="width:60px" class="input" />
-                <span>{{ opt.title }}</span>
-              </div>
-            </div>
-
-            <!-- Multi text -->
-            <div v-if="q.type === 'multi_text'" class="dq-multi-text">
-              <div v-for="(field, fi) in (q.config?.fields || [])" :key="fi" class="form-group">
-                <label>{{ field.label }}</label>
-                <input class="input" :placeholder="field.placeholder" v-model="answers[q.id + '_field_' + fi]" />
-              </div>
+            <div v-if="q.type === 'ranking'" class="dq-ranking">
+              <div class="dq-ranking-hint">上下拖拽选项进行排序（越靠上优先级越高）</div>
+              <draggable
+                v-model="rankingOrders[q.id]"
+                item-key="id"
+                handle=".ranking-drag-handle"
+                ghost-class="ranking-ghost"
+                :animation="200"
+              >
+                <template #item="{ element: opt, index }">
+                  <div class="dq-ranking-item">
+                    <span class="ranking-drag-handle">⠿</span>
+                    <span class="ranking-pos">{{ index + 1 }}</span>
+                    <span class="dq-ranking-label">{{ opt.title }}</span>
+                  </div>
+                </template>
+              </draggable>
             </div>
 
             <!-- Image Radio -->
@@ -162,6 +175,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { surveysAPI, responsesAPI } from '../api'
+import draggable from 'vuedraggable'
 
 const route = useRoute()
 const router = useRouter()
@@ -169,6 +183,7 @@ const router = useRouter()
 const survey = ref(null)
 const answers = reactive({})
 const fileNames = reactive({})
+const rankingOrders = reactive({})
 const currentPage = ref(0)
 const startTime = Date.now()
 
@@ -176,16 +191,16 @@ const style = computed(() => survey.value?.style || {})
 const typeLabels = {
   radio: '单选', checkbox: '多选', text: '填空', textarea: '多行文本',
   dropdown: '单选', rating: '评分', ranking: '排序', scale: '量表',
-  slider: '滑块', date: '日期', time: '时间', multi_text: '多项填空',
+  slider: '滑块', date: '日期', time: '时间',
   file_upload: '上传', image_radio: '图片单选', image_checkbox: '图片多选',
 }
 
 const pageStyle = computed(() => {
   const s = style.value || {}
   return {
-    '--survey-theme': s.theme_color || '#4F46E5',
-    '--survey-bg': s.bg_color || '#F9FAFB',
-    '--survey-progress': s.progress_color || s.theme_color || '#4F46E5',
+    '--survey-theme': s.theme_color || '#2563EB',
+    '--survey-bg': s.bg_color || '#F0F4FF',
+    '--survey-progress': s.progress_color || s.theme_color || '#2563EB',
     '--survey-logo-bg': s.logo_bg_color || '#FFFFFF',
     backgroundColor: 'var(--survey-bg)',
     backgroundImage: s.bg_image ? `url(${s.bg_image})` : 'none',
@@ -194,10 +209,22 @@ const pageStyle = computed(() => {
   }
 })
 
+function initRankingOrders() {
+  if (!survey.value?.questions) return
+  for (const q of survey.value.questions) {
+    if (q.type === 'ranking' && q.options?.length) {
+      if (!rankingOrders[q.id]) {
+        rankingOrders[q.id] = [...q.options]
+      }
+    }
+  }
+}
+
 onMounted(async () => {
   try {
     const { data } = await surveysAPI.public(route.params.id)
     survey.value = data
+    initRankingOrders()
   } catch {
     router.push('/')
   }
@@ -259,18 +286,18 @@ async function submit() {
         payload.answer_number = Number(answers[q.id]) || 0
       } else if (q.type === 'text' || q.type === 'textarea') {
         payload.answer_text = answers[q.id] || ''
-      } else if (q.type === 'date' || q.type === 'time') {
-        payload.answer_text = answers[q.id] || ''
-      } else if (q.type === 'multi_text') {
+      } else if (q.type === 'date') {
         payload.answer_json = {}
-        for (const fi in (q.config?.fields || [])) {
-          payload.answer_json[`field_${fi}`] = answers[q.id + '_field_' + fi] || ''
-        }
+        if ((q.config?.mode || 'datetime') !== 'time') payload.answer_json.date = answers[q.id + '_date'] || ''
+        if ((q.config?.mode || 'datetime') !== 'date') payload.answer_json.time = answers[q.id + '_time'] || ''
+      } else if (q.type === 'time') {
+        payload.answer_text = answers[q.id] || ''
       } else if (q.type === 'ranking') {
         payload.answer_json = {}
-        for (const opt of q.options) {
-          payload.answer_json[opt.id] = Number(answers[q.id + '_' + opt.id]) || 0
-        }
+        const order = rankingOrders[q.id] || q.options
+        order.forEach((opt, idx) => {
+          payload.answer_json[opt.id] = idx + 1
+        })
       }
       if (payload.option || payload.answer_text || payload.answer_number !== undefined || payload.answer_json) {
         answerList.push(payload)
@@ -299,6 +326,7 @@ async function submit() {
 <style scoped>
 .display-page {
   min-height: calc(100vh - var(--header-height));
+  background: var(--survey-bg);
 }
 .display-container {
   max-width: 1400px;
@@ -312,15 +340,17 @@ async function submit() {
   padding: var(--spacing-lg);
   margin-bottom: var(--spacing-md);
   border-radius: var(--radius-md);
+  border-top: 3px solid var(--survey-theme);
 }
 .display-header {
   text-align: center;
   margin-bottom: var(--spacing-xl);
   padding-bottom: var(--spacing-lg);
-  border-bottom: 1px solid var(--color-border-light);
+  border-bottom: 2px solid color-mix(in srgb, var(--survey-theme) 12%, transparent);
 }
 .display-header h1 {
   font-size: var(--font-size-xl);
+  color: var(--survey-theme);
 }
 .progress-bar {
   height: 6px;
@@ -340,14 +370,17 @@ async function submit() {
   right: 0;
   top: -20px;
   font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
+  font-weight: 600;
+  color: var(--survey-theme);
 }
 .dq-num { color: var(--survey-theme); }
 .btn-primary { background: var(--survey-theme); border-color: var(--survey-theme); }
 .btn-primary:hover { background: var(--survey-theme); filter: brightness(0.9); }
+input[type="radio"], input[type="checkbox"] { accent-color: var(--survey-theme); }
+select { border-color: color-mix(in srgb, var(--survey-theme) 20%, transparent); }
 .display-question {
   padding: var(--spacing-lg) 0;
-  border-bottom: 1px solid var(--color-border-light);
+  border-bottom: 1px solid color-mix(in srgb, var(--survey-theme) 10%, transparent);
 }
 .dq-title {
   font-size: var(--font-size-base);
@@ -359,32 +392,54 @@ async function submit() {
   flex-wrap: wrap;
 }
 .dq-num {
-  color: var(--color-primary);
+  color: var(--survey-theme);
   font-weight: 600;
 }
-.dq-required {
-  color: var(--color-danger);
-  font-weight: 600;
-}
-.dq-options {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-sm);
-}
+.dq-required { color: var(--color-danger); font-weight: 600; }
+.dq-options { display: flex; flex-direction: column; gap: var(--spacing-sm); }
 .dq-option {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
+  display: flex; align-items: center; gap: var(--spacing-sm);
   padding: var(--spacing-sm) var(--spacing-md);
-  border: 1px solid var(--color-border-light);
+  border: 1px solid color-mix(in srgb, var(--survey-theme) 15%, transparent);
   border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: all var(--transition-fast);
+  cursor: pointer; transition: all var(--transition-fast);
 }
 .dq-option:hover {
-  border-color: var(--color-primary);
-  background: var(--color-primary-light);
+  border-color: var(--survey-theme);
+  background: color-mix(in srgb, var(--survey-theme) 6%, transparent);
 }
+.dq-ranking { display: flex; flex-direction: column; gap: var(--spacing-xs); }
+.dq-ranking-hint { font-size: 12px; color: var(--color-text-tertiary); margin-bottom: 8px; }
+.dq-ranking-item {
+  display: flex; align-items: center; gap: var(--spacing-sm);
+  padding: 10px 14px;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-white);
+  transition: all 0.15s ease;
+  cursor: default;
+}
+.dq-ranking-item:hover { border-color: var(--survey-theme); box-shadow: var(--shadow-sm); }
+.ranking-drag-handle {
+  font-size: 18px; color: var(--color-text-tertiary);
+  cursor: grab; flex-shrink: 0; line-height: 1;
+  padding: 2px;
+}
+.ranking-drag-handle:active { cursor: grabbing; }
+.ranking-pos {
+  width: 26px; height: 26px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--survey-theme); color: #fff;
+  border-radius: 50%;
+  font-size: 12px; font-weight: 700;
+  flex-shrink: 0;
+}
+.ranking-ghost {
+  opacity: 0.4;
+  background: color-mix(in srgb, var(--survey-theme) 12%, transparent);
+  border: 2px dashed var(--survey-theme);
+}
+.dq-ranking-label { font-size: 14px; font-weight: 500; }
 .dq-rating {
   display: flex;
   gap: 4px;
@@ -417,7 +472,7 @@ async function submit() {
 }
 .dq-slider input[type="range"] {
   flex: 1;
-  accent-color: var(--color-primary);
+  accent-color: var(--survey-theme);
 }
 .slider-value {
   font-weight: 600;
@@ -440,23 +495,68 @@ async function submit() {
   cursor: pointer;
 }
 .dq-image-option.selected {
-  border-color: var(--color-primary);
+  border-color: var(--survey-theme);
 }
 .dq-image-option img {
   max-width: 120px;
   height: auto;
 }
-.section-break-title { text-align: center; font-size: 22px; font-weight: 700; padding: var(--spacing-lg) 0; color: var(--color-text-primary); }
-.dq-multi-text {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-sm);
+.section-break-title { text-align: center; font-size: 22px; font-weight: 700; padding: var(--spacing-lg) 0; color: var(--survey-theme); }
+.dq-datetime { display: flex; gap: var(--spacing-sm); }
+.dt-field {
+  flex: 0 1 240px; min-width: 0;
+  display: flex; align-items: center;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-white);
+  overflow: hidden;
+  transition: all 0.2s ease;
 }
+.dt-field:focus-within {
+  border-color: var(--survey-theme);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--survey-theme) 15%, transparent);
+}
+.dt-field-icon {
+  font-size: 18px; padding: 0 12px; flex-shrink: 0;
+  opacity: 0.7;
+}
+.dt-field:focus-within .dt-field-icon { opacity: 1; }
+.dt-input {
+  flex: 1; min-width: 0;
+  padding: 10px 10px 10px 0;
+  border: none; outline: none;
+  font-size: 15px; font-family: var(--font-family);
+  color: var(--color-text-primary);
+  background: transparent;
+}
+.dt-input::-webkit-calendar-picker-indicator {
+  cursor: pointer; padding: 4px 8px;
+  opacity: 0.5; transition: opacity 0.15s;
+}
+.dt-input::-webkit-calendar-picker-indicator:hover { opacity: 1; }
 .display-nav {
   display: flex;
   gap: var(--spacing-md);
   margin-top: var(--spacing-xl);
   justify-content: center;
+  align-items: center;
+}
+.display-nav .btn-primary {
+  background: var(--survey-theme) !important;
+  border-color: var(--survey-theme) !important;
+  color: #fff !important;
+}
+.display-nav .btn-primary:hover {
+  background: var(--survey-theme) !important;
+  filter: brightness(0.9);
+}
+.display-nav .btn-secondary {
+  border-color: var(--survey-theme) !important;
+  color: var(--survey-theme) !important;
+  background: transparent !important;
+}
+.display-nav .btn-secondary:hover {
+  background: color-mix(in srgb, var(--survey-theme) 8%, transparent) !important;
 }
 .flex-1 { flex: 1; }
 </style>
