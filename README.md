@@ -1,12 +1,8 @@
-# QMaster — 问卷调查系统
+# QMaster — 企业问卷调查系统
 
-> 多种题型 | 可视化统计 | MySQL + Django + Vue 3 | Docker 一键部署
+> 14 种题型 | 拖拽排序 | 评分模式 | 可视化统计 | 蓝色主题 | Docker 一键部署
 
 ## 快速开始
-
-### 前置条件
-- Docker & Docker Compose
-- 或：Python 3.12 + Node.js 20 + MySQL 8.0 + Redis
 
 ### Docker 部署（推荐）
 
@@ -18,10 +14,12 @@ cp .env.example .env
 # 2. 一键启动
 docker compose up -d
 
-# 3. 访问
-# 前端: http://localhost
-# 管理后台: http://localhost/admin
-# 默认管理员: python manage.py createsuperuser
+# 3. 创建管理员
+docker compose exec backend python manage.py createsuperuser
+
+# 4. 访问
+# 前端: http://localhost:8088
+# 管理后台: http://localhost:8088/admin
 ```
 
 ### 本地开发
@@ -30,9 +28,7 @@ docker compose up -d
 # 后端
 cd backend
 pip install -r requirements.txt
-cp ../.env.example ../.env  # 编辑数据库连接
 python manage.py migrate
-python manage.py createsuperuser
 python manage.py runserver
 
 # 前端
@@ -46,66 +42,83 @@ npm run dev
 
 | 层级 | 技术 |
 |------|------|
-| 后端 | Django 5.1 + DRF |
-| 前端 | Vue 3 (Composition API) + Vite |
+| 后端 | Django 5.1 + Django REST Framework |
+| 前端 | Vue 3 (Composition API) + Vite 6 |
 | 数据库 | MySQL 8.0 |
 | 缓存 | Redis 7 |
 | 图表 | ECharts 5 |
+| 拖拽 | vuedraggable |
 | 部署 | Docker Compose |
 
 ## 功能
 
-### MVP 阶段 (17 种题型)
-单选题、多选题、填空题、多行填空题、多项填空题、下拉单选题、评分题、排序题、日期题、时间题、文件上传题、分页、分段、量表题、滑块题、图片单选题、图片多选题
+### 14 种题型
+
+| 分类 | 题型 |
+|------|------|
+| 基础 | 单选、多选、填空（多行文本）、下拉 |
+| 高级 | 评分、**拖拽排序**、量表、滑块 |
+| 其他 | 日期/时间（可切换仅日期/仅时间/日期+时间）、文件上传、图片单选、图片多选 |
+| 结构 | 分页、章节标题 |
 
 ### 高级功能
-- 17 项自定义样式（主题色/背景/Logo/进度条）
-- 数据统计：柱状图/饼图/圆环图/条形图
-- Excel 导出
-- 问卷模板库
-- 分享链接 + 二维码
-- Django Admin 后台管理
-- 题库系统（7 大类）
-- 14 种表单验证
-- 移动端自适应
+
+- **评分模式** — 每题和选项可设分值，自动计算总分
+- **目标部门** — 独立 Tab 配置问卷推送范围，树形勾选部门
+- **拖拽排序题** — 答题端直接拖拽排位，直观高效
+- **日期/时间合并** — 三个模式切换：日期+时间、仅日期、仅时间
+- **样式设置** — 主题色、背景色、Logo、题头图、进度条、题型标签、分数显示
+- **数据统计** — 柱状图、饼图、圆环图、条形图；应提交/已提交/未提交名单
+- **Excel 导出** — 一键导出统计报表
+- **分享链接 + 二维码** — 扫码即可填写
+- **Django Admin 后台** — 完整数据管理
+- **题库系统** — 7 大类题目模板
+- **部门组织架构** — 树形部门管理 + CSV 批量导入
+- **移动端自适应** — 手机浏览器自动适配
 
 ## 项目结构
 
 ```
 qmaster/
-├── docker-compose.yml
-├── .env
-├── backend/           # Django 后端
+├── docker-compose.yml          # Docker 编排
+├── .env                        # 环境变量
+├── backend/                    # Django 后端
 │   ├── apps/
-│   │   ├── users/     # 用户系统
-│   │   ├── surveys/   # 问卷/题目/选项
-│   │   ├── responses/ # 提交/答案/统计
-│   │   ├── templates_app/  # 模板库
-│   │   └── bank/      # 题库
-│   └── config/        # Django 配置
-├── frontend/          # Vue 3 前端
+│   │   ├── users/              # 用户系统（角色权限）
+│   │   ├── surveys/            # 问卷 / 题目 / 选项 CRUD
+│   │   ├── responses/          # 提交 / 答案 / 统计 API
+│   │   ├── templates_app/      # 问卷模板库
+│   │   └── bank/               # 题库
+│   └── config/                 # Django 配置（settings / urls / wsgi）
+├── frontend/                   # Vue 3 前端
 │   └── src/
-│       ├── views/     # 页面
-│       ├── components/# 组件
-│       ├── api/       # API 封装
-│       ├── stores/    # Pinia 状态
-│       └── styles/    # CSS 设计系统
-└── nginx/             # Nginx 配置
+│       ├── views/              # 页面
+│       │   ├── IndexView.vue   # 首页（功能卡片）
+│       │   ├── HomeView.vue    # 问卷管理（编辑/目标/样式/统计）
+│       │   ├── DisplayView.vue # 问卷填写端（公开）
+│       │   ├── TasksView.vue   # 答题任务端
+│       │   ├── DepartmentView.vue  # 部门管理
+│       │   ├── TemplateView.vue    # 模板浏览
+│       │   ├── LoginView.vue   # 登录
+│       │   ├── RegisterView.vue# 注册
+│       │   ├── ProfileView.vue # 个人中心
+│       │   └── ThankYouView.vue# 提交完成页
+│       ├── components/
+│       │   ├── survey/         # SurveyEditor / StylePanel / PublishDeptNode
+│       │   ├── statistics/     # StatisticsPanel
+│       │   ├── layout/         # AppHeader
+│       │   └── common/         # DeptNode / DeptCascadeNode
+│       ├── api/                # Axios API 封装
+│       ├── stores/             # Pinia 状态管理
+│       └── styles/             # CSS 变量 + 全局样式
+└── nginx/                      # Nginx 配置
 ```
 
-## 部署到离线 Linux 服务器
+## 角色权限
 
-```bash
-# 1. 服务器安装 Docker
-curl -fsSL https://get.docker.com | bash
-
-# 2. 上传项目到服务器
-scp -r qmaster/ user@server:/opt/qmaster/
-
-# 3. 启动
-cd /opt/qmaster
-docker compose up -d
-
-# 4. 创建管理员
-docker compose exec backend python manage.py createsuperuser
-```
+| 角色 | 编号 | 权限 |
+|------|:--:|------|
+| 总管理 | 1 | 全部权限：创建/编辑/发布/删除问卷、管理用户和部门 |
+| 管理员 | 2 | 创建/编辑/发布/删除问卷、管理本级及下级部门 |
+| 用户 | 3 | 仅答题 |
+| 部门负责人 | 4 | 仅答题 |
