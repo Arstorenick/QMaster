@@ -15,4 +15,7 @@ urlpatterns = [
     path('departments/import/', views.batch_import, name='dept-import'),
     path('departments/dashboard/', views.dept_dashboard, name='dept-dashboard'),
     path('departments/survey-stats/<int:survey_id>/', views.dept_survey_stats, name='dept-survey-stats'),
+    path('users/<int:user_id>/', views.admin_update_user, name='admin-update-user'),
+    path('users/bulk-update-role/', views.admin_bulk_update_role, name='admin-bulk-update-role'),
+    path('users/bulk-update-dept/', views.admin_bulk_update_dept, name='admin-bulk-update-dept'),
 ]

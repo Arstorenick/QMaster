@@ -1,27 +1,75 @@
 <template>
   <div class="stats-panel">
-    <div class="stats-header">
-      <div class="stats-summary">
-        <div class="stat-card stat-clickable" style="border-color: var(--color-primary); --hover-bg: var(--color-primary-light)" @click="showDetail('expected')">
-          <span class="stat-num">{{ stats?.expected_submissions || 0 }}</span>
-          <span class="stat-label" style="color: var(--color-primary)">应提交人数</span>
+    <!-- Top Bar -->
+    <div class="stats-topbar">
+      <div class="stats-title-row">
+        <h2>数据统计</h2>
+        <span v-if="stats" class="stats-badge">{{ stats.total_submissions || 0 }} 份提交</span>
+      </div>
+      <button class="btn btn-secondary" @click="exportExcel">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="vertical-align:-3px;margin-right:4px"><path d="M2 10v3a1 1 0 001 1h10a1 1 0 001-1v-3M8 2v10m0 0L5 9m3 3l3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        导出 Excel
+      </button>
+    </div>
+
+    <!-- Stat Cards -->
+    <div class="stats-summary">
+      <div class="stat-card stat-card-blue" @click="showDetail('expected')">
+        <div class="stat-card-inner">
+          <div class="stat-card-left">
+            <div class="stat-card-icon stat-icon-blue">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 22c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>
+            </div>
+          </div>
+          <div class="stat-card-right">
+            <span class="stat-num stat-num-blue">{{ stats?.expected_submissions || 0 }}</span>
+            <span class="stat-label">应提交人数</span>
+          </div>
         </div>
-        <div class="stat-card stat-clickable" style="border-color: var(--color-success); --hover-bg: var(--color-success-light)" @click="showDetail('submitted')">
-          <span class="stat-num" style="color: var(--color-success)">{{ stats?.total_submissions || 0 }}</span>
-          <span class="stat-label" style="color: var(--color-success)">已提交人数</span>
+        <div class="stat-card-footer">点击查看名单</div>
+      </div>
+
+      <div class="stat-card stat-card-green" @click="showDetail('submitted')">
+        <div class="stat-card-inner">
+          <div class="stat-card-left">
+            <div class="stat-card-icon stat-icon-green">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            </div>
+          </div>
+          <div class="stat-card-right">
+            <span class="stat-num stat-num-green">{{ stats?.total_submissions || 0 }}</span>
+            <span class="stat-label">已提交人数</span>
+          </div>
         </div>
-        <div class="stat-card stat-clickable" style="border-color: var(--color-danger); --hover-bg: var(--color-danger-light)" @click="showDetail('remaining')">
-          <span class="stat-num" style="color: var(--color-danger)">{{ stats?.remaining_submissions || 0 }}</span>
-          <span class="stat-label" style="color: var(--color-danger)">未提交人数</span>
+        <div class="stat-card-footer">{{ completionRate }}% 完成率</div>
+      </div>
+
+      <div class="stat-card stat-card-red" @click="showDetail('remaining')">
+        <div class="stat-card-inner">
+          <div class="stat-card-left">
+            <div class="stat-card-icon stat-icon-red">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            </div>
+          </div>
+          <div class="stat-card-right">
+            <span class="stat-num stat-num-red">{{ stats?.remaining_submissions || 0 }}</span>
+            <span class="stat-label">未提交人数</span>
+          </div>
         </div>
+        <div class="stat-card-footer">点击查看名单</div>
       </div>
     </div>
-    <div class="stats-actions">
-      <button class="btn btn-secondary btn-sm" @click="exportExcel">导出 Excel</button>
+
+    <!-- Submission Progress Bar -->
+    <div v-if="stats" class="stats-overall-bar">
+      <div class="overall-bar-track">
+        <div class="overall-bar-fill" :style="{ width: completionRate + '%' }"></div>
+      </div>
+      <span class="overall-bar-text">总完成率 {{ completionRate }}%</span>
     </div>
 
     <div v-if="!stats?.questions?.length" class="stats-empty text-center">
-      <p style="font-size:48px;margin-bottom:12px">📊</p>
+      <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" style="opacity:0.3;margin-bottom:12px"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
       <p class="text-secondary">{{ stats?.total_submissions ? '暂无分析数据' : '还没有人提交问卷' }}</p>
     </div>
 
@@ -115,12 +163,17 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { responsesAPI } from '../../api'
 import * as echarts from 'echarts'
 
 const props = defineProps({ survey: Object })
 const stats = ref(null)
+
+const completionRate = computed(() => {
+  if (!stats.value || !stats.value.expected_submissions) return 0
+  return Math.round((stats.value.total_submissions / stats.value.expected_submissions) * 100)
+})
 const chartInstances = {}
 const chartRefs = {}
 const activeChart = ref({})
@@ -242,49 +295,95 @@ async function exportExcel() {
 </script>
 
 <style scoped>
-.stats-panel {
-  padding: var(--spacing-lg);
-  max-width: 1400px;
-  margin: 0 auto;
+.stats-panel { padding: var(--spacing-lg); max-width: 1400px; margin: 0 auto; }
+
+/* ── Top Bar ── */
+.stats-topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: var(--spacing-xl);
 }
-.stats-summary { display: flex; gap: var(--spacing-md); flex: 1; }
-.stats-header {
+.stats-title-row { display: flex; align-items: center; gap: var(--spacing-md); }
+.stats-title-row h2 { font-size: 22px; font-weight: 700; }
+.stats-badge {
+  font-size: 13px; font-weight: 500;
+  color: var(--color-primary); background: var(--color-primary-50);
+  padding: 4px 12px; border-radius: 20px;
+}
+
+/* ── Stat Cards ── */
+.stats-summary {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--spacing-md);
   margin-bottom: var(--spacing-md);
 }
-.stats-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: var(--spacing-lg);
-}
 .stat-card {
-  flex: 1; text-align: center;
-  padding: var(--spacing-lg) var(--spacing-xl);
+  background: var(--color-bg-white);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-lg);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid var(--color-border-light);
+  overflow: hidden;
+}
+.stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.08); }
+.stat-card-inner { display: flex; align-items: center; gap: var(--spacing-md); margin-bottom: var(--spacing-md); }
+.stat-card-left { flex-shrink: 0; }
+.stat-card-right { flex: 1; min-width: 0; }
+.stat-card-icon {
+  width: 48px; height: 48px; border-radius: var(--radius-lg);
+  display: flex; align-items: center; justify-content: center;
+}
+.stat-icon-blue { background: #EFF6FF; color: #2563EB; }
+.stat-icon-green { background: #ECFDF5; color: #059669; }
+.stat-icon-red { background: #FEF2F2; color: #DC2626; }
+.stat-num { font-size: 28px; font-weight: 800; line-height: 1; display: block; }
+.stat-num-blue { color: #2563EB; }
+.stat-num-green { color: #059669; }
+.stat-num-red { color: #DC2626; }
+.stat-label { font-size: 13px; font-weight: 500; color: var(--color-text-secondary); }
+.stat-card-footer {
+  font-size: 12px; color: var(--color-text-tertiary);
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--color-border-light);
+}
+
+/* ── Overall Progress Bar ── */
+.stats-overall-bar {
+  display: flex; align-items: center; gap: var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-lg);
   background: var(--color-bg-white);
   border-radius: var(--radius-lg);
-  border: 2px solid var(--color-border-light);
+  border: 1px solid var(--color-border-light);
+  margin-bottom: var(--spacing-xl);
 }
-.stat-num {
-  font-size: var(--font-size-3xl);
-  font-weight: 700;
-  line-height: 1.1;
-  color: var(--color-primary);
-  display: block;
+.overall-bar-track {
+  flex: 1; height: 10px;
+  background: var(--color-border-light);
+  border-radius: 5px; overflow: hidden;
 }
-.stat-label {
-  font-size: var(--font-size-sm);
-  font-weight: 500;
-  margin-top: 4px;
+.overall-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #2563EB, #3B82F6);
+  border-radius: 5px;
+  transition: width 0.6s ease;
+  min-width: 2px;
 }
-.stat-clickable { cursor: pointer; transition: all var(--transition-fast); }
-.stat-clickable:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); background: var(--hover-bg, var(--color-bg-white)); }
+.overall-bar-text {
+  font-size: 14px; font-weight: 600; color: var(--color-primary);
+  white-space: nowrap;
+}
 
+/* ── Empty State ── */
+.stats-empty { padding: var(--spacing-3xl); }
+.stats-empty-icon { font-size: 56px; margin-bottom: var(--spacing-md); opacity: 0.4; }
+
+/* ── Detail Panel ── */
 .detail-panel {
   border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
   background: var(--color-bg-white);
   overflow: hidden;
-  margin-top: var(--spacing-md);
-  animation: fadeInUp 0.25s ease;
+  margin-bottom: var(--spacing-lg);
+  animation: fadeInUp 0.3s ease;
 }
 .detail-inner { max-height: 400px; display: flex; flex-direction: column; }
 .detail-header {
@@ -293,92 +392,91 @@ async function exportExcel() {
   border-bottom: 1px solid var(--color-border-light);
   background: var(--color-bg);
 }
-.detail-header h3 { font-size: 15px; flex: 1; }
-.detail-count { font-size: 12px; color: var(--color-text-tertiary); background: var(--color-bg-white); padding: 2px 10px; border-radius: 10px; }
-.detail-close { font-size: 16px; padding: 4px 8px; }
+.detail-header h3 { font-size: 16px; font-weight: 600; flex: 1; }
+.detail-count { font-size: 12px; color: var(--color-primary); background: var(--color-primary-50); padding: 3px 12px; border-radius: 12px; font-weight: 600; }
+.detail-close { font-size: 18px; padding: 4px 10px; border-radius: 8px; }
+.detail-close:hover { background: var(--color-border-light); }
 .detail-body { flex: 1; overflow-y: auto; padding: var(--spacing-sm); }
 .detail-item {
   display: flex; align-items: center; gap: var(--spacing-sm);
-  padding: 8px 12px; border-radius: var(--radius-md);
-  transition: background var(--transition-fast);
+  padding: 10px 14px; border-radius: var(--radius-md);
+  transition: background 0.15s ease;
 }
 .detail-item:hover { background: var(--color-bg-hover); }
 .detail-avatar {
-  width: 36px; height: 36px; border-radius: 50%;
-  background: var(--color-primary-light); color: var(--color-primary);
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--color-primary-100); color: var(--color-primary);
   display: flex; align-items: center; justify-content: center;
-  font-size: 14px; font-weight: 700; flex-shrink: 0;
+  font-size: 15px; font-weight: 700; flex-shrink: 0;
 }
 .detail-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.detail-name { font-size: 14px; font-weight: 500; }
+.detail-name { font-size: 14px; font-weight: 600; }
 .detail-meta { font-size: 12px; color: var(--color-text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 @keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.stats-empty {
-  padding: var(--spacing-2xl);
-}
+
+/* ── Question Stats Card ── */
 .stat-question {
-  padding: var(--spacing-lg);
+  padding: var(--spacing-xl);
   margin-bottom: var(--spacing-md);
+  border-radius: var(--radius-xl);
 }
 .stat-q-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--spacing-md);
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: var(--spacing-lg);
 }
-.pct-bar {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  position: relative;
-}
+.stat-q-header h4 { font-size: 16px; font-weight: 600; }
+
+/* ── Option Table ── */
+.pct-bar { display: flex; align-items: center; gap: var(--spacing-sm); }
 .pct-fill {
-  height: 6px;
-  background: var(--color-primary);
-  border-radius: 3px;
+  height: 8px;
+  background: linear-gradient(90deg, #2563EB, #60A5FA);
+  border-radius: 4px;
   min-width: 2px;
+  transition: width 0.4s ease;
 }
 .chart-actions {
-  display: flex;
-  gap: var(--spacing-xs);
-  margin-top: var(--spacing-md);
+  display: flex; gap: 6px; margin-top: var(--spacing-lg);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--color-border-light);
+}
+.chart-actions button {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.15s ease;
 }
 .chart-actions .active {
-  background: var(--color-primary-light);
-  color: var(--color-primary);
+  background: var(--color-primary) !important;
+  color: #fff !important;
 }
-.chart-container {
-  width: 100%;
-  height: 300px;
-  margin-top: var(--spacing-md);
-}
+.chart-container { width: 100%; height: 320px; margin-top: var(--spacing-md); }
+
+/* ── Average Display ── */
 .avg-display {
-  text-align: center;
-  padding: var(--spacing-lg);
+  text-align: center; padding: var(--spacing-2xl);
+  background: linear-gradient(135deg, var(--color-primary-50), #EEF2FF);
+  border-radius: var(--radius-lg);
 }
-.avg-num {
-  font-size: var(--font-size-3xl);
-  font-weight: 700;
-  color: var(--color-primary);
-  display: block;
-}
-.text-answers {
-  max-height: 400px;
-  overflow-y: auto;
-}
+.avg-num { font-size: 48px; font-weight: 800; color: var(--color-primary); display: block; line-height: 1; }
+
+/* ── Text Answers ── */
+.text-answers { max-height: 400px; overflow-y: auto; }
 .text-answer-item {
-  padding: var(--spacing-sm) 0;
+  padding: var(--spacing-sm) var(--spacing-md);
   border-bottom: 1px solid var(--color-border-light);
-  display: flex;
-  gap: var(--spacing-sm);
-  font-size: var(--font-size-sm);
+  display: flex; gap: var(--spacing-md); font-size: 14px;
+  transition: background 0.15s;
 }
-.text-answer-num {
-  color: var(--color-text-tertiary);
-  flex-shrink: 0;
+.text-answer-item:hover { background: var(--color-bg); }
+.text-answer-num { color: var(--color-text-tertiary); flex-shrink: 0; min-width: 30px; }
+
+@media (max-width: 768px) {
+  .stats-summary { grid-template-columns: 1fr; }
 }
 </style>

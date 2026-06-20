@@ -136,9 +136,43 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 # ── SimpleUI ─────────────────────────────────────────────
 SIMPLEUI_HOME_TITLE = 'QMaster 管理后台'
-SIMPLEUI_HOME_ICON = 'fa fa-clipboard-list'
+SIMPLEUI_HOME_ICON = 'fa fa-poll'
+SIMPLEUI_LOGO = 'QMaster'
 SIMPLEUI_ANALYSIS = False
-SIMPLEUI_DEFAULT_THEME = 'indigo.css'
+SIMPLEUI_DEFAULT_THEME = 'e-blue-pro.css'
+SIMPLEUI_CONFIG = {
+    'system_keep': False,
+    'menu_display': ['用户管理', '问卷系统', '题库管理', '认证和授权'],
+    'dynamic': True,
+    'menus': [
+        {
+            'name': '问卷系统',
+            'icon': 'fas fa-poll',
+            'models': [
+                {'name': '问卷列表', 'url': '/admin/surveys/survey/'},
+                {'name': '题目管理', 'url': '/admin/surveys/question/'},
+                {'name': '选项管理', 'url': '/admin/surveys/option/'},
+                {'name': '提交记录', 'url': '/admin/responses/submission/'},
+                {'name': '答案明细', 'url': '/admin/responses/answer/'},
+            ]
+        },
+        {
+            'name': '用户管理',
+            'icon': 'fas fa-users',
+            'models': [
+                {'name': '用户列表', 'url': '/admin/users/user/'},
+                {'name': '部门列表', 'url': '/admin/users/department/'},
+            ]
+        },
+        {
+            'name': '题库管理',
+            'icon': 'fas fa-database',
+            'models': [
+                {'name': '题库列表', 'url': '/admin/bank/bankitem/'},
+            ]
+        },
+    ]
+}
 
 # ── Default ──────────────────────────────────────────────
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

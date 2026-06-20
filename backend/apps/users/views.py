@@ -60,7 +60,7 @@ def me_view(request):
 @permission_classes([IsAuthenticated])
 def profile_view(request):
     """更新个人信息"""
-    serializer = UserProfileSerializer(request.user, data=request.data, partial=True)
+    serializer = UserProfileSerializer(request.user, data=request.data, partial=True, context={'request': request})
     if serializer.is_valid():
         serializer.save()
         return Response(UserSerializer(request.user).data)
@@ -79,16 +79,83 @@ def change_password(request):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def admin_update_user(request, user_id):
+    """管理员编辑用户信息"""
+    if not request.user.is_creator:
+        return Response({'detail': '无权操作'}, status=status.HTTP_403_FORBIDDEN)
+    from django.shortcuts import get_object_or_404
+    target = get_object_or_404(User, id=user_id)
+    serializer = AdminUserUpdateSerializer(target, data=request.data, partial=True, context={'request': request})
+    if serializer.is_valid():
+        serializer.save()
+        return Response(UserSerializer(target).data)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def admin_bulk_update_role(request):
+    """批量修改用户角色"""
+    if not request.user.is_creator:
+        return Response({'detail': '无权操作'}, status=status.HTTP_403_FORBIDDEN)
+    user_ids = request.data.get('user_ids', [])
+    new_role = request.data.get('role')
+    if new_role not in (2, 3):
+        return Response({'detail': '角色无效'}, status=status.HTTP_400_BAD_REQUEST)
+    if not isinstance(user_ids, list) or not user_ids:
+        return Response({'detail': '请选择用户'}, status=status.HTTP_400_BAD_REQUEST)
+    updated = User.objects.filter(id__in=user_ids).update(role=new_role)
+    return Response({'updated': updated})
+
+
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def admin_bulk_update_dept(request):
+    """批量修改用户部门"""
+    if not request.user.is_creator:
+        return Response({'detail': '无权操作'}, status=status.HTTP_403_FORBIDDEN)
+    user_ids = request.data.get('user_ids', [])
+    dept_id = request.data.get('department')
+    if not dept_id or not isinstance(user_ids, list) or not user_ids:
+        return Response({'detail': '参数无效'}, status=status.HTTP_400_BAD_REQUEST)
+    from django.shortcuts import get_object_or_404
+    dept = get_object_or_404(Department, id=dept_id)
+    updated = User.objects.filter(id__in=user_ids).update(department=dept)
+    return Response({'updated': updated})
+
+
 # ═══════════════════════════════════════════════
 #  Department
 # ═══════════════════════════════════════════════
+
+def _get_visible_dept_root(user):
+    """管理员可见的部门根节点（优先 managed_department，否则自身 department）"""
+    if user.is_super_admin:
+        return None  # None = 全部
+    if user.is_creator:
+        if user.managed_department:
+            return user.managed_department
+        if user.department:
+            return user.department
+    if user.department:
+        return user.department
+    return None
+
 
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def department_list(request):
     """部门列表 / 创建部门（仅制表人以上）"""
     if request.method == 'GET':
-        depts = Department.objects.filter(parent__isnull=True).order_by('name')
+        root = _get_visible_dept_root(request.user)
+        if root is None and request.user.is_super_admin:
+            depts = Department.objects.filter(parent__isnull=True)
+        elif root is not None:
+            depts = Department.objects.filter(id=root.id)
+        else:
+            depts = Department.objects.none()
         return Response(DepartmentSerializer(depts, many=True).data)
 
     if not request.user.is_creator:
@@ -118,11 +185,18 @@ def department_detail(request, dept_id):
 
 
 @api_view(['GET'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def department_flat_list(request):
-    """扁平部门列表（下拉选择用）"""
-    depts = Department.objects.all().order_by('parent__id', 'name')
-    return Response(DepartmentFlatSerializer(depts, many=True).data)
+    """扁平部门列表（下拉选择用，仅返回用户可见的部门）"""
+    root = _get_visible_dept_root(request.user)
+    if root is None and request.user.is_super_admin:
+        depts = Department.objects.all()
+    elif root is not None:
+        ids = root.get_descendant_ids()
+        depts = Department.objects.filter(id__in=ids)
+    else:
+        depts = Department.objects.none()
+    return Response(DepartmentFlatSerializer(depts.order_by('parent__id', 'name'), many=True).data)
 
 
 # ═══════════════════════════════════════════════

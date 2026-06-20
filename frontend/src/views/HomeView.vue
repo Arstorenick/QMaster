@@ -72,38 +72,77 @@
         :questions="questions"
         :readonly="currentSurvey.status !== 0"
         :scoring-enabled="currentSurvey.scoring_enabled"
+        :skip-enabled="currentSurvey.skip_enabled"
         @refresh="loadQuestions"
         @toggleScoring="toggleScoring"
+        @toggleSkip="toggleSkip"
       />
 
       <!-- Deploy Tab -->
       <section class="deploy-panel" v-if="activeTab === 'deploy'">
-        <div class="deploy-top-row">
-          <div class="deploy-stat-card">
-            <div class="deploy-stat-num">{{ allDeptCount }}</div>
-            <div class="deploy-stat-label">部门总数</div>
+        <!-- Top Bar -->
+        <div class="deploy-topbar">
+          <div class="deploy-title-row">
+            <h2>目标部门</h2>
+            <span class="deploy-title-badge">{{ targetCheckedDepts.length }} / {{ allDeptCount }} 已选</span>
           </div>
-          <div class="deploy-stat-card">
-            <div class="deploy-stat-num">{{ targetCheckedDepts.length }}</div>
-            <div class="deploy-stat-label">已选部门</div>
-          </div>
+          <p class="text-sm text-secondary">选择问卷推送范围，发布后所选部门成员将收到答题任务</p>
         </div>
-        <div class="deploy-card card">
-          <div class="deploy-card-header">
-            <h4>📂 选择推送范围</h4>
-            <div class="deploy-card-actions">
-              <button class="btn btn-secondary btn-sm" @click="autoPopulateDepts" v-if="targetDepts.length">自动填充本部门</button>
-              <button class="btn btn-ghost btn-sm" @click="targetCheckedDepts = []">清空</button>
+
+        <!-- Stat Cards -->
+        <div class="deploy-stat-row">
+          <div class="deploy-stat-card">
+            <div class="deploy-stat-icon-wrap deploy-stat-icon-blue">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 21h18"/><path d="M5 21V7l8-3v17"/><path d="M19 21V11l-6-2"/></svg>
+            </div>
+            <div class="deploy-stat-info">
+              <span class="deploy-stat-num">{{ allDeptCount }}</span>
+              <span class="deploy-stat-label">部门总数</span>
             </div>
           </div>
-          <p class="text-secondary text-sm" style="margin-bottom:12px">勾选要推送问卷的部门，发布后该部门下的所有成员将收到问卷任务</p>
+          <div class="deploy-stat-card">
+            <div class="deploy-stat-icon-wrap deploy-stat-icon-green">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+            </div>
+            <div class="deploy-stat-info">
+              <span class="deploy-stat-num">{{ targetCheckedDepts.length }}</span>
+              <span class="deploy-stat-label">已选部门</span>
+            </div>
+          </div>
+          <div class="deploy-stat-card">
+            <div class="deploy-stat-icon-wrap deploy-stat-icon-purple">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 22c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>
+            </div>
+            <div class="deploy-stat-info">
+              <span class="deploy-stat-num">{{ selectedMemberCount }}</span>
+              <span class="deploy-stat-label">预估覆盖人数</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tree Card -->
+        <div class="deploy-card card">
+          <div class="deploy-card-header">
+            <div>
+              <h4>选择推送范围</h4>
+              <p class="text-sm text-secondary">勾选部门即可推送，支持级联选择</p>
+            </div>
+            <div class="deploy-card-actions">
+              <button class="btn btn-secondary btn-sm" @click="selectAllDepts" v-if="targetDepts.length && targetCheckedDepts.length !== allDeptCount">全选</button>
+              <button class="btn btn-secondary btn-sm" @click="autoPopulateDepts" v-if="targetDepts.length">自动填充本部门</button>
+              <button class="btn btn-ghost btn-sm" @click="targetCheckedDepts = []" v-if="targetCheckedDepts.length">清空</button>
+            </div>
+          </div>
           <div class="deploy-tree">
             <div v-for="dept in targetDepts" :key="dept.id">
               <PublishDeptNode :dept="dept" :level="0" :checked-ids="targetCheckedDepts" @toggle="toggleDeptCheck" />
             </div>
             <div v-if="!targetDepts.length" class="deploy-empty">
-              <img :src="taskImg" alt="empty" style="width:56px;height:56px;object-fit:contain;margin-bottom:12px;opacity:0.3" />
-              <p class="text-secondary">暂无部门数据，请先在「组织架构」中创建部门</p>
+              <div class="deploy-empty-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity="0.3"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+              </div>
+              <p class="text-secondary">暂无部门数据</p>
+              <p class="text-sm text-secondary">请先在「组织架构」中创建部门</p>
             </div>
           </div>
         </div>
@@ -269,6 +308,28 @@ function countAllDepts(list) {
 }
 const allDeptCount = computed(() => countAllDepts(targetDepts.value))
 
+function countSelectedMembers(list) {
+  let n = 0
+  for (const d of list) {
+    if (targetCheckedDepts.value.includes(d.id)) n += d.member_count || 0
+    if (d.children) n += countSelectedMembers(d.children)
+  }
+  return n
+}
+const selectedMemberCount = computed(() => countSelectedMembers(targetDepts.value))
+
+function collectAllDeptIds(list) {
+  let ids = []
+  for (const d of list) {
+    ids.push(d.id)
+    if (d.children) ids = ids.concat(collectAllDeptIds(d.children))
+  }
+  return ids
+}
+function selectAllDepts() {
+  targetCheckedDepts.value = collectAllDeptIds(targetDepts.value)
+}
+
 onMounted(loadSurveys)
 
 async function loadSurveys() {
@@ -409,6 +470,12 @@ async function toggleScoring(enabled) {
   await surveysAPI.update(s.id, { scoring_enabled: enabled })
 }
 
+async function toggleSkip(enabled) {
+  const s = currentSurvey.value
+  s.skip_enabled = enabled
+  await surveysAPI.update(s.id, { skip_enabled: enabled })
+}
+
 function onStyleUpdated() {
   loadSurveys()
 }
@@ -517,7 +584,7 @@ watch(showShareDialog, async (val) => {
 }
 .main-area {
   flex: 1;
-  overflow-y: auto;
+  overflow: hidden;
   background: var(--color-bg);
 }
 .main-empty {
@@ -532,9 +599,8 @@ watch(showShareDialog, async (val) => {
   padding: var(--spacing-sm) var(--spacing-lg);
   background: var(--color-bg-white);
   border-bottom: 1px solid var(--color-border-light);
-  position: sticky;
-  top: 0;
-  z-index: 10;
+  position: sticky; top: 0; z-index: 30;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
 .toolbar-tabs {
   display: flex;
@@ -606,24 +672,70 @@ watch(showShareDialog, async (val) => {
 .scoring-toggle { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--color-text-secondary); cursor: pointer; user-select: none; }
 .scoring-toggle input { accent-color: var(--color-warning); }
 .lock-banner { padding: var(--spacing-md) var(--spacing-xl); background: var(--color-warning-light); border-bottom: 1px solid #FDE68A; text-align: center; font-size: 13px; color: #92400E; }
-.deploy-panel { padding: var(--spacing-lg); }
-.deploy-top-row { display: flex; gap: var(--spacing-md); margin-bottom: var(--spacing-lg); }
-.deploy-stat-card {
-  flex: 1; text-align: center;
-  padding: var(--spacing-lg);
-  border-radius: var(--radius-lg);
-  background: linear-gradient(135deg, var(--color-primary-50) 0%, var(--color-primary-light) 100%);
-  border: 1px solid var(--color-primary-100);
+.main-area > :deep(.style-panel),
+.main-area > :deep(.stats-panel) { max-height: calc(100vh - 110px); overflow-y: auto; display: block; }
+.deploy-panel { padding: var(--spacing-lg); max-height: calc(100vh - 110px); overflow-y: auto; }
+
+/* ── Top Bar ── */
+.deploy-topbar { margin-bottom: var(--spacing-xl); }
+.deploy-title-row { display: flex; align-items: center; gap: var(--spacing-md); margin-bottom: 6px; }
+.deploy-title-row h2 { font-size: 22px; font-weight: 700; }
+.deploy-title-badge {
+  font-size: 13px; font-weight: 500;
+  color: var(--color-primary); background: var(--color-primary-50);
+  padding: 4px 12px; border-radius: 20px;
 }
-.deploy-stat-num { font-size: 32px; font-weight: 700; color: var(--color-primary); line-height: 1.1; }
-.deploy-stat-label { font-size: 13px; color: var(--color-primary-600); margin-top: 4px; }
-.deploy-card { padding: var(--spacing-lg); }
-.deploy-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-.deploy-card-header h4 { font-size: var(--font-size-md); font-weight: 600; }
+
+/* ── Stat Cards ── */
+.deploy-stat-row {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+}
+.deploy-stat-card {
+  display: flex; align-items: center; gap: var(--spacing-md);
+  padding: var(--spacing-lg);
+  background: var(--color-bg-white);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-border-light);
+  transition: all 0.2s ease;
+}
+.deploy-stat-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.06); }
+.deploy-stat-icon-wrap {
+  width: 48px; height: 48px; border-radius: var(--radius-lg);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.deploy-stat-icon-blue { background: #EFF6FF; color: #2563EB; }
+.deploy-stat-icon-green { background: #ECFDF5; color: #059669; }
+.deploy-stat-icon-purple { background: #F5F3FF; color: #7C3AED; }
+.deploy-stat-info { flex: 1; min-width: 0; }
+.deploy-stat-num { font-size: 26px; font-weight: 800; color: var(--color-text-primary); line-height: 1.1; display: block; }
+.deploy-stat-label { font-size: 13px; color: var(--color-text-secondary); font-weight: 500; }
+
+/* ── Tree Card ── */
+.deploy-card { padding: var(--spacing-xl); border-radius: var(--radius-xl); }
+.deploy-card-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  margin-bottom: 16px; padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-border-light);
+}
+.deploy-card-header h4 { font-size: 16px; font-weight: 600; }
 .deploy-card-actions { display: flex; gap: var(--spacing-sm); }
-.deploy-tree { max-height: 420px; overflow-y: auto; border: 1px solid var(--color-border-light); border-radius: var(--radius-md); padding: var(--spacing-sm); background: var(--color-bg); }
-.deploy-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: var(--spacing-2xl); }
+.deploy-tree {
+  max-height: 480px; overflow-y: auto;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xs);
+  background: var(--color-bg);
+}
+.deploy-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: var(--spacing-3xl); }
+.deploy-empty-icon { margin-bottom: 12px; }
 .publish-tree { max-height: 300px; overflow-y: auto; border: 1px solid var(--color-border-light); border-radius: var(--radius-md); padding: var(--spacing-sm); }
+
+@media (max-width: 768px) {
+  .deploy-stat-row { grid-template-columns: 1fr; }
+  .deploy-card-header { flex-direction: column; gap: var(--spacing-sm); }
+}
 .delete-modal {
   width: 90%; max-width: 380px;
   padding: var(--spacing-2xl);

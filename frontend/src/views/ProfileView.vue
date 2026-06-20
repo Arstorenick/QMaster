@@ -1,51 +1,70 @@
 <template>
   <div class="profile-page">
-    <div class="container" style="max-width:560px;margin:0 auto;padding:var(--spacing-xl)">
-      <h2>个人信息</h2>
-
-      <div class="card" style="padding:var(--spacing-xl);margin-top:var(--spacing-md)">
-        <h4 style="margin-bottom:var(--spacing-md)">基本信息</h4>
-        <div class="form-group">
-          <label>账号</label>
-          <input class="input" :value="auth.user?.username" disabled />
-        </div>
-        <div class="form-group">
-          <label>用户名</label>
-          <input v-model="form.display_name" class="input" placeholder="请输入姓名" />
-        </div>
-        <div class="form-group">
-          <label>工号</label>
-          <input v-model="form.employee_id" class="input" placeholder="请输入工号" />
-        </div>
-        <div class="form-group">
-          <label>性别</label>
-          <select v-model="form.gender" class="input">
-            <option value="">未选择</option>
-            <option value="male">男</option>
-            <option value="female">女</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>联系方式</label>
-          <input v-model="form.phone" class="input" placeholder="手机号或邮箱" />
-        </div>
-        <div class="form-group">
-          <label>所属部门</label>
-          <div class="dept-select-btn" @click="showDeptPicker = true">
-            <span v-if="deptPath">{{ deptPath }}</span>
-            <span v-else class="text-secondary">点击选择部门</span>
-            <span style="margin-left:auto">›</span>
+    <div class="profile-container">
+      <div class="profile-card card">
+        <!-- Header row -->
+        <div class="profile-top">
+          <div class="profile-avatar">{{ (auth.user?.display_name || auth.user?.username || '?').charAt(0).toUpperCase() }}</div>
+          <div class="profile-top-info">
+            <h2>{{ auth.user?.display_name || auth.user?.username }}</h2>
           </div>
         </div>
-        <div class="form-group">
-          <label>角色</label>
-          <input class="input" :value="auth.user?.role_label" disabled />
+
+        <!-- Form: single column -->
+        <div class="profile-form">
+          <div class="form-row">
+            <label>账号</label>
+            <input class="input" :value="auth.user?.username" disabled />
+          </div>
+          <div class="form-row">
+            <label>用户名</label>
+            <input v-model="form.display_name" class="input" placeholder="请输入姓名" />
+          </div>
+          <div class="form-row">
+            <label>工号</label>
+            <input v-model="form.employee_id" class="input" placeholder="请输入工号" />
+          </div>
+          <div class="form-row">
+            <label>性别</label>
+            <select v-model="form.gender" class="input">
+              <option value="">未选择</option>
+              <option value="male">男</option>
+              <option value="female">女</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label>联系方式</label>
+            <input v-model="form.phone" class="input" placeholder="手机号或邮箱" />
+          </div>
+          <div class="form-row">
+            <label>所属部门</label>
+            <div v-if="auth.isCreator" class="dept-select-btn" style="opacity:0.6;cursor:default">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+              <span v-if="deptPath" class="dept-select-text">{{ deptPath }}</span>
+              <span v-else class="dept-select-placeholder">未设置</span>
+            </div>
+            <div v-else class="dept-select-btn" @click="showDeptPicker = true">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+              <span v-if="deptPath" class="dept-select-text">{{ deptPath }}</span>
+              <span v-else class="dept-select-placeholder">点击选择部门</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+            </div>
+            <small v-if="auth.isCreator" style="color:var(--color-text-tertiary)">管理员不能修改自己的所属部门</small>
+          </div>
+          <div class="form-row">
+            <label>角色</label>
+            <div class="dept-select-btn" style="opacity:0.6;cursor:default">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              <span class="dept-select-text">{{ auth.user?.role_label }}</span>
+            </div>
+            <small v-if="auth.isCreator" style="color:var(--color-text-tertiary)">管理员不能修改自己的角色</small>
+          </div>
         </div>
-        <p v-if="infoSaved" class="text-sm" style="color:var(--color-success)">已保存</p>
-        <div class="form-actions">
-          <button class="btn btn-primary" @click="saveProfile" :disabled="saving">
-            {{ saving ? '保存中...' : '保存' }}
-          </button>
+
+        <!-- Actions -->
+        <p v-if="infoSaved" class="profile-success">✓ 信息已保存</p>
+        <div class="profile-actions">
+          <button class="btn btn-primary" @click="saveProfile" :disabled="saving">{{ saving ? '保存中...' : '保存' }}</button>
           <button class="btn btn-secondary" @click="showPwdDialog = true">修改密码</button>
         </div>
       </div>
@@ -206,13 +225,14 @@ function clearDept() {
 
 async function saveProfile() {
   saving.value = true; infoSaved.value = false
-  await profileAPI.update({
+  const data = {
     display_name: form.display_name,
     employee_id: form.employee_id,
     phone: form.phone,
     gender: form.gender,
-    department: form.department || null,
-  })
+  }
+  if (!auth.isCreator) data.department = form.department || null
+  await profileAPI.update(data)
   await auth.fetchMe()
   saving.value = false; infoSaved.value = true
   setTimeout(() => infoSaved.value = false, 2000)
@@ -241,24 +261,75 @@ async function changePassword() {
 </script>
 
 <style scoped>
-.form-group { margin-bottom: var(--spacing-md); }
-.form-group label { display: block; font-size: var(--font-size-sm); font-weight: 500; margin-bottom: var(--spacing-xs); color: var(--color-text-primary); }
-.form-actions { display: flex; gap: var(--spacing-sm); margin-top: var(--spacing-md); }
+.profile-page {
+  min-height: calc(100vh - var(--header-height));
+  display: flex; align-items: center; justify-content: center;
+  background: var(--color-bg);
+  padding: var(--spacing-lg);
+}
+.profile-container { width: 100%; max-width: 420px; }
+
+/* ── Header ── */
+.profile-top { display: flex; align-items: center; gap: 14px; margin-bottom: var(--spacing-lg); }
+.profile-avatar {
+  width: 48px; height: 48px; border-radius: 50%;
+  background: linear-gradient(135deg, #2563EB, #3B82F6);
+  color: #fff; font-size: 20px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; box-shadow: 0 3px 12px rgba(37, 99, 235, 0.2);
+}
+.profile-top-info h2 { font-size: 20px; font-weight: 700; line-height: 1.2; }
+.profile-meta { display: flex; align-items: center; gap: var(--spacing-sm); margin-top: 2px; }
+.profile-role-tag {
+  font-size: 12px; font-weight: 500;
+  color: var(--color-primary); background: var(--color-primary-50);
+  padding: 2px 10px; border-radius: 10px;
+}
+.profile-dept { font-size: 12px; color: var(--color-text-tertiary); }
+
+/* ── Card + Form ── */
+.profile-card { padding: var(--spacing-xl); border-radius: var(--radius-xl); }
+.profile-form { display: flex; flex-direction: column; gap: var(--spacing-sm); }
+.form-row { display: flex; flex-direction: column; gap: 3px; }
+.form-row label { font-size: 13px; font-weight: 600; color: var(--color-text-primary); }
+
+/* ── Actions ── */
+.profile-actions { display: flex; gap: var(--spacing-sm); margin-top: var(--spacing-lg); }
+.profile-success {
+  font-size: 13px; font-weight: 500; color: var(--color-success);
+  padding: 6px 12px; margin-top: var(--spacing-sm);
+  background: #ECFDF5; border-radius: var(--radius-md);
+  display: inline-block;
+}
+
+/* ── Department Select ── */
+.dept-select-btn {
+  display: flex; align-items: flex-start; gap: var(--spacing-sm);
+  padding: 9px 12px; border: 1px solid var(--color-border);
+  border-radius: var(--radius-md); cursor: pointer; font-size: 14px;
+  transition: all 0.15s ease; background: var(--color-bg-white);
+  min-height: 40px;
+}
+.dept-select-btn:hover { border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-primary-100); }
+.dept-select-text { flex: 1; min-width: 0; line-height: 1.4; word-break: break-all; }
+.dept-select-placeholder { flex: 1; color: var(--color-text-tertiary); }
+.dept-select-btn svg { flex-shrink: 0; opacity: 0.4; margin-top: 2px; }
+
+/* ── Modals ── */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.3); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 200; }
-.modal { width: 90%; max-width: 420px; padding: var(--spacing-xl); }
+.modal { width: 90%; max-width: 420px; padding: var(--spacing-xl); border-radius: var(--radius-xl); }
+.modal h3 { font-size: 18px; font-weight: 700; }
 .modal-actions { display: flex; justify-content: flex-end; gap: var(--spacing-sm); margin-top: var(--spacing-lg); }
-.dept-select-btn { display: flex; align-items: center; padding: 8px 14px; border: 1.5px solid var(--color-border); border-radius: var(--radius-md); cursor: pointer; font-size: var(--font-size-sm); transition: all var(--transition-fast); background: var(--color-bg-white); }
-.dept-select-btn:hover { border-color: var(--color-primary); }
 .dept-picker-modal { max-width: 480px; max-height: 70vh; display: flex; flex-direction: column; }
-.dept-breadcrumb { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-bottom: 12px; padding: 8px 0; border-bottom: 1px solid var(--color-border-light); }
-.bread-item { font-size: var(--font-size-sm); color: var(--color-primary); cursor: pointer; padding: 2px 6px; border-radius: var(--radius-sm); }
-.bread-item:hover { background: var(--color-primary-light); }
+.dept-breadcrumb { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-bottom: 14px; padding: 8px 0; border-bottom: 1px solid var(--color-border-light); }
+.bread-item { font-size: 13px; color: var(--color-primary); cursor: pointer; padding: 4px 8px; border-radius: var(--radius-sm); font-weight: 500; }
+.bread-item:hover { background: var(--color-primary-50); }
 .bread-sep { color: var(--color-text-tertiary); font-size: 14px; }
-.dept-list { flex: 1; overflow-y: auto; max-height: 350px; }
+.dept-list { flex: 1; overflow-y: auto; max-height: 320px; }
 .dept-pick-grid { display: flex; flex-direction: column; gap: 2px; }
-.dept-pick-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-radius: var(--radius-md); cursor: pointer; transition: background var(--transition-fast); }
+.dept-pick-item { display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.15s; }
 .dept-pick-item:hover { background: var(--color-bg-hover); }
-.dept-pick-item.selected { background: var(--color-primary-light); color: var(--color-primary); }
-.dept-pick-name { font-size: var(--font-size-sm); font-weight: 500; }
+.dept-pick-item.selected { background: var(--color-primary-light); color: var(--color-primary); font-weight: 600; }
+.dept-pick-name { font-size: 14px; font-weight: 500; }
 .dept-pick-arrow { font-size: 18px; color: var(--color-text-tertiary); }
 </style>

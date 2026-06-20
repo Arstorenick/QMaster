@@ -107,6 +107,9 @@ export const departmentsAPI = {
   import: (data) => api.post('/api/auth/departments/import/', data),
   dashboard: () => api.get('/api/auth/departments/dashboard/'),
   surveyStats: (surveyId) => api.get(`/api/auth/departments/survey-stats/${surveyId}/`),
+  updateUser: (userId, data) => api.patch(`/api/auth/users/${userId}/`, data),
+  bulkUpdateRole: (userIds, role) => api.patch('/api/auth/users/bulk-update-role/', { user_ids: userIds, role }),
+  bulkUpdateDept: (userIds, department) => api.patch('/api/auth/users/bulk-update-dept/', { user_ids: userIds, department }),
 }
 
 // ── Question Bank ──

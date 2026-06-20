@@ -53,12 +53,10 @@ class User(AbstractUser):
     ROLE_SUPER_ADMIN = 1
     ROLE_CREATOR = 2
     ROLE_RESPONDENT = 3
-    ROLE_DEPT_HEAD = 4
     ROLE_CHOICES = [
         (ROLE_SUPER_ADMIN, '总管理'),
         (ROLE_CREATOR, '管理员'),
         (ROLE_RESPONDENT, '用户'),
-        (ROLE_DEPT_HEAD, '部门负责人'),
     ]
 
     role = models.SmallIntegerField('角色', choices=ROLE_CHOICES, default=ROLE_RESPONDENT)
@@ -94,10 +92,6 @@ class User(AbstractUser):
     @property
     def is_creator(self):
         return self.role in (self.ROLE_SUPER_ADMIN, self.ROLE_CREATOR)
-
-    @property
-    def is_dept_head(self):
-        return self.role == self.ROLE_DEPT_HEAD
 
     @property
     def is_respondent(self):

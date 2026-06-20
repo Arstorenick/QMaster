@@ -85,7 +85,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id', 'username', 'display_name', 'email', 'employee_id',
                   'phone', 'gender', 'role', 'role_label', 'department', 'department_name',
-                  'date_joined', 'is_banned', 'is_super_admin', 'is_creator']
+                  'managed_department', 'date_joined', 'is_banned', 'is_super_admin', 'is_creator']
         read_only_fields = ['id', 'username', 'date_joined', 'is_banned',
                             'is_super_admin', 'is_creator']
 
@@ -100,6 +100,68 @@ class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['display_name', 'email', 'employee_id', 'phone', 'gender', 'department']
+
+    def validate_department(self, value):
+        request = self.context.get('request')
+        if request and request.user.is_creator:
+            raise serializers.ValidationError('管理员不能修改自己的所属部门')
+        return value
+
+
+class AdminUserUpdateSerializer(serializers.ModelSerializer):
+    """管理员编辑用户信息"""
+    class Meta:
+        model = User
+        fields = ['display_name', 'employee_id', 'phone', 'department', 'role', 'managed_department']
+
+    def validate_managed_department(self, value):
+        request = self.context.get('request')
+        if not value or not request:
+            return value
+        user = request.user
+        if user.is_super_admin:
+            return value
+        # 管理员只能设为自己所属部门或子部门
+        if user.department:
+            allowed = user.department.get_descendant_ids()
+            if value.id not in allowed:
+                raise serializers.ValidationError('只能设为所辖范围内的部门')
+        else:
+            raise serializers.ValidationError('无权设置管理部门')
+        return value
+
+    def validate_department(self, value):
+        request = self.context.get('request')
+        if request and self.instance and self.instance.id == request.user.id:
+            raise serializers.ValidationError('不能修改自己的所属部门')
+        return value
+
+    def validate_role(self, value):
+        request = self.context.get('request')
+        if request and not request.user.is_creator:
+            raise serializers.ValidationError('无权修改角色')
+        if request and self.instance and self.instance.id == request.user.id:
+            raise serializers.ValidationError('不能修改自己的角色')
+        if value not in (2, 3):
+            raise serializers.ValidationError('角色无效，仅可设为管理员(2)或用户(3)')
+        return value
+
+    def validate_managed_department(self, value):
+        request = self.context.get('request')
+        if request and self.instance and self.instance.id == request.user.id:
+            raise serializers.ValidationError('不能修改自己的管理部门')
+        if not value or not request:
+            return value
+        user = request.user
+        if user.is_super_admin:
+            return value
+        if user.department:
+            allowed = user.department.get_descendant_ids()
+            if value.id not in allowed:
+                raise serializers.ValidationError('只能设为所辖范围内的部门')
+        else:
+            raise serializers.ValidationError('无权设置管理部门')
+        return value
 
 
 class ChangePasswordSerializer(serializers.Serializer):

@@ -3,21 +3,26 @@
     <!-- Mode Selector -->
     <div class="mode-bar" v-if="!readonly">
       <div class="mode-tabs">
-        <button :class="['mode-tab', { active: !scoringEnabled }]" @click="$emit('toggleScoring', false)">
+        <button :class="['mode-tab', { active: !scoringEnabled && !skipEnabled }]" @click="$emit('toggleScoring', false); $emit('toggleSkip', false)">
           <img :src="normalModeImg" alt="normal" class="mode-icon-img" />
           <span>正常模式</span>
         </button>
-        <button :class="['mode-tab', { active: scoringEnabled }]" @click="$emit('toggleScoring', true)">
+        <button :class="['mode-tab', { active: scoringEnabled }]" @click="$emit('toggleScoring', true); $emit('toggleSkip', false)">
           <img :src="scoreModeImg" alt="score" class="mode-icon-img" />
           <span>分值模式</span>
         </button>
+        <button :class="['mode-tab', { active: skipEnabled }]" @click="$emit('toggleScoring', false); $emit('toggleSkip', true)">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 5l7 7-7 7M5 5l7 7-7 7"/></svg>
+          <span>跳转模式</span>
+        </button>
       </div>
       <span class="mode-hint" v-if="scoringEnabled">每题可设置分数，提交时自动计算总分</span>
+      <span class="mode-hint" v-if="skipEnabled" style="background:linear-gradient(135deg,#EFF6FF,#DBEAFE);border-color:#93C5FD;color:#1D4ED8">为选项设置跳转规则，答题时按选择跳题</span>
     </div>
 
     <!-- Question Type Toolbar -->
     <div class="type-toolbar" v-if="!readonly">
-      <div class="type-group" v-for="group in typeGroups" :key="group.label">
+      <div class="type-group" v-for="group in visibleTypeGroups" :key="group.label">
         <span class="type-group-label">{{ group.label }}</span>
         <div class="type-buttons">
           <button
@@ -26,7 +31,7 @@
             @click="addQuestion(t.value)"
           ><img v-if="t.img" :src="t.img" class="type-btn-icon-img" /><span v-else class="type-btn-icon">{{ t.icon }}</span><span class="type-btn-label">{{ t.label }}</span></button>
         </div>
-      </div>
+    </div>
     </div>
 
     <!-- Question List -->
@@ -111,6 +116,14 @@
                 <span class="score-unit">分</span>
               </div>
               <button v-if="!readonly" class="btn btn-ghost btn-sm" @click="deleteOption(q, opt.id)" style="color:var(--color-danger)">×</button>
+              <div v-if="skipEnabled && !readonly" class="skip-rule">
+                <span class="skip-rule-label">→</span>
+                <select class="skip-rule-select" v-model="ensureSkipRules(q)[opt.id]" @change="updateQuestion(q)">
+                  <option :value="null">下一题</option>
+                  <option v-for="sq in getSkipTargets(q)" :key="sq.id" :value="sq.id">{{ sq.title || '未命名' }}</option>
+                  <option :value="-1">结束问卷</option>
+                </select>
+              </div>
             </div>
             <button v-if="!readonly" class="btn btn-ghost btn-sm add-option-btn" @click="addOption(q)">+ 添加选项</button>
 
@@ -183,7 +196,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import draggable from 'vuedraggable'
 import { questionsAPI, optionsAPI } from '../../api'
 import addImg from '../../assets/add.png'
@@ -202,8 +215,9 @@ const props = defineProps({
   questions: Array,
   readonly: { type: Boolean, default: false },
   scoringEnabled: { type: Boolean, default: false },
+  skipEnabled: { type: Boolean, default: false },
 })
-const emit = defineEmits(['refresh', 'toggleScoring'])
+const emit = defineEmits(['refresh', 'toggleScoring', 'toggleSkip'])
 
 const dragging = ref(false)
 
@@ -235,20 +249,29 @@ const typeGroups = [
   {
     label: '其他',
     types: [
-      { value: 'date', label: '日期/时间', icon: '📅' },
+      { value: 'date', label: '时间', icon: '📅' },
       { value: 'file_upload', label: '上传', icon: '📎' },
-      { value: 'image_radio', label: '图片单选', icon: '🖼️' },
-      { value: 'image_checkbox', label: '图片多选', icon: '🖼️' },
+      { value: 'image_radio', label: '图单', icon: '🖼️' },
+      { value: 'image_checkbox', label: '图多', icon: '🖼️' },
     ],
   },
   {
     label: '结构',
     types: [
       { value: 'page_break', label: '分页', icon: '📄' },
-      { value: 'section_break', label: '章节标题', icon: '📑' },
+      { value: 'section_break', label: '标题', icon: '📑' },
     ],
   },
 ]
+
+const skipOnlyTypes = ['radio', 'dropdown', 'image_radio']
+const visibleTypeGroups = computed(() => {
+  if (!props.skipEnabled) return typeGroups
+  return typeGroups.map(g => ({
+    ...g,
+    types: g.types.filter(t => skipOnlyTypes.includes(t.value))
+  })).filter(g => g.types.length)
+})
 
 function getTypeLabel(type) {
   for (const g of typeGroups) {
@@ -303,6 +326,7 @@ async function updateQuestion(q) {
     is_required: q.is_required,
     type: q.type,
     config: q.config,
+    score: q.score || 0,
   })
 }
 
@@ -332,8 +356,19 @@ async function addOption(q) {
   emit('refresh')
 }
 
+function ensureSkipRules(q) {
+  if (!q.config) q.config = {}
+  if (!q.config.skip_rules) q.config.skip_rules = {}
+  return q.config.skip_rules
+}
+
+function getSkipTargets(currentQ) {
+  const idx = props.questions.findIndex(q => q.id === currentQ.id)
+  return props.questions.slice(idx + 1).filter(q => skipOnlyTypes.includes(q.type))
+}
+
 async function updateOption(q, opt) {
-  await optionsAPI.update(props.survey.id, q.id, opt.id, { title: opt.title })
+  await optionsAPI.update(props.survey.id, q.id, opt.id, { title: opt.title, score: opt.score || 0 })
 }
 
 async function deleteOption(q, optId) {
@@ -343,125 +378,101 @@ async function deleteOption(q, optId) {
 </script>
 
 <style scoped>
-.editor-layout {
-  padding: var(--spacing-lg);
-  max-width: 1400px;
-  margin: 0 auto;
+.editor-layout { padding: var(--spacing-lg); max-width: 1400px; margin: 0 auto; }
+.question-list {
+  max-height: calc(100vh - 340px); overflow-y: auto;
+  position: relative;
 }
+.question-list::before {
+  content: ''; position: sticky; top: 0; display: block;
+  height: 24px;
+  background: linear-gradient(to bottom, var(--color-bg), transparent);
+  z-index: 5; pointer-events: none;
+}
+
+/* ── Mode Bar ── */
 .mode-bar {
   display: flex; align-items: center; flex-wrap: wrap; gap: var(--spacing-sm);
-  margin-bottom: var(--spacing-md);
+  padding: 8px 0; margin-bottom: var(--spacing-sm);
 }
 .mode-tabs {
-  display: flex;
-  gap: 2px;
-  background: var(--color-bg);
-  border-radius: var(--radius-md);
-  padding: 4px;
-  display: inline-flex;
+  display: inline-flex; gap: 0; position: relative;
+  background: var(--color-bg); border-radius: var(--radius-lg);
+  padding: 4px; border: 1px solid var(--color-border-light);
 }
 .mode-tab {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 20px;
-  border: none;
-  background: transparent;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-size: 14px;
-  font-family: var(--font-family);
+  display: flex; align-items: center; gap: 8px; padding: 8px 24px;
+  border: none; background: transparent; border-radius: var(--radius-md);
+  cursor: pointer; font-size: 14px; font-family: var(--font-family);
   color: var(--color-text-secondary);
-  transition: all var(--transition-fast);
+  position: relative; z-index: 1;
+  transition: color 0.25s ease, font-weight 0.25s ease;
 }
-.mode-tab:hover {
-  color: var(--color-text-primary);
-}
+.mode-tab:hover { color: var(--color-text-primary); }
 .mode-tab.active {
-  background: var(--color-bg-white);
-  color: var(--color-primary);
-  font-weight: 600;
-  box-shadow: var(--shadow-sm);
+  color: var(--color-primary); font-weight: 600;
+  transition: color 0.15s ease, font-weight 0.15s ease;
+}
+.mode-tab.active::before {
+  content: ''; position: absolute; inset: 0;
+  background: var(--color-bg-white); border-radius: var(--radius-md);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.02);
+  z-index: -1;
+  animation: modeSlideIn 0.25s ease;
+}
+@keyframes modeSlideIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
 }
 .mode-icon-img { width: 22px; height: 22px; object-fit: contain; flex-shrink: 0; }
 .mode-hint {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 4px 12px;
+  padding: 6px 14px;
   background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);
-  border: 1px solid #FCD34D;
-  border-radius: var(--radius-md);
-  font-size: 12px; font-weight: 500;
-  color: #92400E;
-  color: var(--color-warning);
-  vertical-align: middle;
+  border: 1px solid #FCD34D; border-radius: var(--radius-md);
+  font-size: 13px; font-weight: 500; color: #92400E;
+  animation: hintFadeIn 0.35s ease;
 }
+@keyframes hintFadeIn {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* ── Type Toolbar ── */
 .type-toolbar {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-sm);
+  display: flex; flex-direction: column; gap: 6px;
   margin-bottom: var(--spacing-lg);
-  padding: var(--spacing-md);
-  background: var(--color-bg-white);
-  border-radius: var(--radius-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-bg-white); border-radius: var(--radius-lg);
   border: 1px solid var(--color-border-light);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
 }
-.type-group {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-}
+.type-group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .type-group-label {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-tertiary);
-  width: 40px;
-  flex-shrink: 0;
+  font-size: 11px; font-weight: 600; color: var(--color-text-tertiary);
+  text-transform: uppercase; letter-spacing: 0.05em; flex-shrink: 0;
+  min-width: 32px;
 }
-.type-buttons {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-}
+.type-buttons { display: flex; gap: 4px; flex-wrap: wrap; }
 .type-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  width: 110px;
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  padding: 5px 12px; width: 102px;
   border: 1px solid var(--color-border-light);
-  background: var(--color-bg-white);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  font-family: var(--font-family);
-  transition: all var(--transition-fast);
-  white-space: nowrap;
+  background: var(--color-bg-white); border-radius: var(--radius-md);
+  cursor: pointer; font-family: var(--font-family);
+  transition: all 0.15s ease; white-space: nowrap;
 }
-.type-btn:hover {
-  border-color: var(--color-primary);
-  background: var(--color-primary-light);
-}
-.type-btn-icon {
-  font-size: 18px;
-  line-height: 1;
-}
-.type-btn-icon-img {
-  width: 20px; height: 20px; object-fit: contain;
-}
-.type-btn-label {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
-}
-.editor-empty {
-  text-align: center;
-  padding: var(--spacing-2xl);
-}
-.drag-handle {
-  cursor: grab;
-  font-size: 18px;
-  color: var(--color-text-tertiary);
-  user-select: none;
-  padding: 0 4px;
-  transition: color var(--transition-fast);
-}
+.type-btn:hover { border-color: var(--color-primary); background: var(--color-primary-50); transform: translateY(-1px); box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+.type-btn:active { transform: translateY(0); }
+.type-btn-icon { font-size: 16px; line-height: 1; }
+.type-btn-icon-img { width: 16px; height: 16px; object-fit: contain; }
+.type-btn-label { font-size: 12px; color: var(--color-text-secondary); font-weight: 500; }
+.type-btn:hover .type-btn-label { color: var(--color-primary); }
+
+/* ── Question Card ── */
+.editor-empty { text-align: center; padding: var(--spacing-3xl); }
+.drag-handle { cursor: grab; font-size: 18px; color: var(--color-text-tertiary); user-select: none; padding: 0 4px; transition: color 0.15s ease; }
+.drag-handle:hover { color: var(--color-primary); }
 .drag-handle:hover {
   color: var(--color-primary);
 }
@@ -485,13 +496,15 @@ async function deleteOption(q, optId) {
 }
 .question-card.is-page-break {
   text-align: center;
-  background: var(--color-bg);
-  border: 1px dashed var(--color-border);
+  background: var(--color-primary-50);
+  border: 2px dashed var(--color-primary-100);
+  border-radius: var(--radius-lg);
 }
 .question-card.is-section-break {
   text-align: center;
   background: var(--color-bg);
   border: none;
+  padding: var(--spacing-sm) var(--spacing-lg);
 }
 .section-editor {
   display: flex;
@@ -527,23 +540,17 @@ async function deleteOption(q, optId) {
   gap: var(--spacing-md);
 }
 .q-header {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
+  display: flex; align-items: center; gap: var(--spacing-sm);
   margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 1px solid var(--color-border-light);
 }
 .q-number {
-  width: 28px;
-  height: 28px;
-  background: var(--color-primary);
-  color: #fff;
-  border-radius: var(--radius-full);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--font-size-xs);
-  font-weight: 600;
-  flex-shrink: 0;
+  width: 28px; height: 28px;
+  background: var(--color-primary); color: #fff;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; flex-shrink: 0;
 }
 .q-type-tag {
   flex-shrink: 0;
@@ -629,6 +636,19 @@ async function deleteOption(q, optId) {
 .add-option-btn {
   margin-left: 38px;
   margin-top: var(--spacing-xs);
+}
+.skip-rule {
+  display: flex; align-items: center; gap: 4px;
+  margin-left: var(--spacing-sm);
+}
+.skip-rule-label { font-size: 13px; color: var(--color-primary); font-weight: 600; }
+.skip-rule-select {
+  padding: 3px 20px 3px 6px; border: 1px solid #93C5FD;
+  border-radius: var(--radius-sm); font-size: 12px; font-family: var(--font-family);
+  color: #1D4ED8; background: #EFF6FF; cursor: pointer; outline: none;
+  appearance: none; -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='6' height='4' viewBox='0 0 6 4' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l2 2 2-2' stroke='%233B82F6' fill='none'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 4px center;
 }
 .ranking-editor-preview {
   margin-top: var(--spacing-md);

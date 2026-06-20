@@ -30,45 +30,47 @@ const isChecked = computed(() => props.checkedIds.includes(props.dept.id))
 
 <style scoped>
 .pub-item {
-  display: flex; align-items: center; gap: 8px;
-  padding: 7px 10px; margin: 1px 0;
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px; margin: 2px 0;
   border-radius: var(--radius-md);
   cursor: pointer; user-select: none;
   transition: all 0.15s ease;
   border-left: 3px solid transparent;
 }
-.pub-item:hover { background: var(--color-bg-hover); }
+.pub-item:hover { background: var(--color-primary-50); }
 .pub-item.checked {
-  background: var(--color-primary-50);
+  background: linear-gradient(90deg, var(--color-primary-50) 0%, var(--color-primary-50) 100%);
   border-left-color: var(--color-primary);
 }
 .pub-expand {
-  width: 26px; height: 26px; font-size: 16px;
+  width: 28px; height: 28px; font-size: 14px;
   color: var(--color-text-tertiary); cursor: pointer; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
-  border-radius: 4px; transition: transform 0.2s ease;
+  border-radius: 6px; transition: all 0.2s ease;
 }
-.pub-expand:hover { background: var(--color-border-light); color: var(--color-text-primary); }
-.pub-expand.open { transform: rotate(90deg); }
-.pub-expand-placeholder { width: 26px; flex-shrink: 0; }
+.pub-expand:hover { background: var(--color-primary-100); color: var(--color-primary); }
+.pub-expand.open { transform: rotate(90deg); color: var(--color-primary); }
+.pub-expand-placeholder { width: 28px; flex-shrink: 0; }
 .pub-checkbox {
-  width: 18px; height: 18px; flex-shrink: 0;
+  width: 20px; height: 20px; flex-shrink: 0;
   border: 2px solid var(--color-border);
-  border-radius: 4px;
+  border-radius: 6px;
   display: flex; align-items: center; justify-content: center;
   transition: all 0.15s ease;
 }
+.pub-item:hover .pub-checkbox:not(.checked) { border-color: var(--color-primary-200); }
 .pub-checkbox.checked {
   background: var(--color-primary);
   border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-100);
 }
-.check-mark { color: #fff; font-size: 11px; font-weight: 700; line-height: 1; }
-.pub-name { flex: 1; font-size: 13px; font-weight: 500; }
+.check-mark { color: #fff; font-size: 12px; font-weight: 700; line-height: 1; }
+.pub-name { flex: 1; font-size: 14px; font-weight: 500; }
 .pub-count {
-  font-size: 11px; font-weight: 500;
-  color: var(--color-primary);
-  background: var(--color-primary-50);
-  padding: 2px 8px; border-radius: 10px;
+  font-size: 12px; font-weight: 600;
+  color: var(--color-primary-600);
+  background: var(--color-primary-100);
+  padding: 3px 10px; border-radius: 12px;
   flex-shrink: 0;
 }
 </style>

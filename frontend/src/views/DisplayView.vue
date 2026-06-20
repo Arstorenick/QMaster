@@ -41,6 +41,7 @@
               <label v-for="opt in q.options" :key="opt.id" class="dq-option">
                 <input type="radio" :name="'q-' + q.id" :value="opt.id" v-model="answers[q.id]" />
                 <span>{{ opt.title }}</span>
+                <span v-if="style?.show_question_score && opt.score > 0" class="opt-score">{{ opt.score }} 分</span>
               </label>
             </div>
 
@@ -49,6 +50,7 @@
               <label v-for="opt in q.options" :key="opt.id" class="dq-option">
                 <input type="checkbox" :value="opt.id" v-model="answers[q.id]" />
                 <span>{{ opt.title }}</span>
+                <span v-if="style?.show_question_score && opt.score > 0" class="opt-score">{{ opt.score }} 分</span>
               </label>
             </div>
 
@@ -96,11 +98,11 @@
             <!-- Date / Time -->
             <div v-if="q.type === 'date' || q.type === 'time'" class="dq-datetime">
               <div v-if="(q.config?.mode || 'datetime') !== 'time'" class="dt-field">
-                <span class="dt-field-icon">📅</span>
+                <span class="dt-field-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
                 <input type="date" class="dt-input" v-model="answers[q.id + '_date']" />
               </div>
               <div v-if="(q.config?.mode || 'datetime') !== 'date'" class="dt-field">
-                <span class="dt-field-icon">🕐</span>
+                <span class="dt-field-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
                 <input type="time" class="dt-input" v-model="answers[q.id + '_time']" />
               </div>
             </div>
@@ -137,6 +139,7 @@
                 <img v-if="opt.image" :src="opt.image" :alt="opt.title" />
                 <input type="radio" :value="opt.id" v-model="answers[q.id]" />
                 <span>{{ opt.title }}</span>
+                <span v-if="style?.show_question_score && opt.score > 0" class="opt-score">{{ opt.score }} 分</span>
               </label>
             </div>
 
@@ -146,6 +149,7 @@
                 <img v-if="opt.image" :src="opt.image" :alt="opt.title" />
                 <input type="checkbox" :value="opt.id" v-model="answers[q.id]" />
                 <span>{{ opt.title }}</span>
+                <span v-if="style?.show_question_score && opt.score > 0" class="opt-score">{{ opt.score }} 分</span>
               </label>
             </div>
 
@@ -156,7 +160,7 @@
           <div class="display-nav" v-if="pages.length > 1">
             <button class="btn btn-secondary" v-if="currentPage > 0" @click="currentPage--">上一页</button>
             <div class="flex-1"></div>
-            <button class="btn btn-primary" v-if="currentPage < pages.length - 1" @click="currentPage++">下一页</button>
+            <button class="btn btn-primary" v-if="currentPage < pages.length - 1" @click="goNext">下一页</button>
             <button class="btn btn-primary btn-lg" v-if="currentPage === pages.length - 1" @click="submit">提交问卷</button>
           </div>
           <div class="display-nav" v-else>
@@ -263,6 +267,32 @@ function handleFileUpload(q, event) {
   const file = event.target.files[0]
   if (file) fileNames[q.id] = file.name
   answers[q.id] = file
+}
+
+function goNext() {
+  if (!survey.value?.skip_enabled) { currentPage.value++; return }
+  // Find the last single-choice question on the current page
+  const page = pages.value[currentPage.value]
+  if (!page) { currentPage.value++; return }
+  const qs = page.questions
+  let targetId = null
+  for (let i = qs.length - 1; i >= 0; i--) {
+    const q = qs[i]
+    if (['radio', 'dropdown', 'image_radio'].includes(q.type) && q.config?.skip_rules) {
+      const val = answers[q.id]
+      const rule = q.config.skip_rules[val]
+      if (rule) { targetId = rule; break }
+    }
+  }
+  if (targetId === -1) { currentPage.value = pages.value.length; return }
+  if (targetId) {
+    for (let i = 0; i < pages.value.length; i++) {
+      if (pages.value[i].questions.some(q => q.id === targetId)) {
+        currentPage.value = i; return
+      }
+    }
+  }
+  currentPage.value++
 }
 
 async function submit() {
@@ -407,6 +437,13 @@ select { border-color: color-mix(in srgb, var(--survey-theme) 20%, transparent);
 .dq-option:hover {
   border-color: var(--survey-theme);
   background: color-mix(in srgb, var(--survey-theme) 6%, transparent);
+}
+.opt-score {
+  margin-left: auto; flex-shrink: 0;
+  font-size: 12px; font-weight: 600;
+  color: #B45309;
+  background: #FEF3C7;
+  padding: 2px 8px; border-radius: 8px;
 }
 .dq-ranking { display: flex; flex-direction: column; gap: var(--spacing-xs); }
 .dq-ranking-hint { font-size: 12px; color: var(--color-text-tertiary); margin-bottom: 8px; }

@@ -49,11 +49,11 @@
     <!-- Date / Time -->
     <div v-if="question.type === 'date' || question.type === 'time'" class="dq-datetime">
       <div v-if="(question.config?.mode || 'datetime') !== 'time'" class="dt-field">
-        <span class="dt-field-icon">📅</span>
+        <span class="dt-field-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
         <input type="date" class="dt-input" v-model="answers[question.id + '_date']" :disabled="readonly" />
       </div>
       <div v-if="(question.config?.mode || 'datetime') !== 'date'" class="dt-field">
-        <span class="dt-field-icon">🕐</span>
+        <span class="dt-field-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
         <input type="time" class="dt-input" v-model="answers[question.id + '_time']" :disabled="readonly" />
       </div>
     </div>
